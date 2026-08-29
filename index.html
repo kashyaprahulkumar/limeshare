@@ -662,15 +662,13 @@
 
     <script>
         // High Speed Protocol Constants
-        const MIN_CHUNK_SIZE = 16384;   // 16KB Minimum for congested channels
-        const MAX_CHUNK_SIZE = 65536;   // 64KB Safe WebRTC SCTP Message Limit
-        const DEFAULT_CHUNK_SIZE = 32768; // 32KB Reliable universal chunk
-        const MAX_BUFFER = 2 * 1024 * 1024; // 2MB Backpressure limit
-        const LOW_BUFFER = 512 * 1024;  // 512KB Drain threshold
+        const CHUNK_SIZE = 65536;       // 64KB WebRTC SCTP Maximum Single Message
+        const MAX_BUFFER = 1048576;     // 1MB Maximum Outgoing Pipe Threshold
+        const LOW_BUFFER = 262144;      // 256KB Buffer Drain Resumption Threshold
         const PEER_PREFIX = "ls-lan-v6-";
 
         // Global Application State Variables
-        let currentChunkSize = DEFAULT_CHUNK_SIZE;
+        let currentChunkSize = CHUNK_SIZE;
         let consecutiveFastDrains = 0;
         let consecutiveBackpressures = 0;
 
@@ -1132,6 +1130,15 @@
         function setupDataConnection(conn, isInitiator) {
             activeDataConn = conn;
 
+            // Ensure underlying data channel is configured for fast raw binary
+            const dc = conn._dc || conn.dataChannel;
+            if (dc) {
+                try { dc.binaryType = 'arraybuffer'; } catch(e) {}
+                if ('bufferedAmountLowThreshold' in dc) {
+                    try { dc.bufferedAmountLowThreshold = LOW_BUFFER; } catch(e) {}
+                }
+            }
+
             conn.on('open', () => {
                 if (isInitiator) {
                     try {
@@ -1159,8 +1166,23 @@
             });
         }
 
-        function handleIncomingData(data, conn) {
+        /* --- STREAMING_CHUNK:Processing incoming control messages and binary stream data --- */
+        async function handleIncomingData(data, conn) {
             if (!data) return;
+
+            // Instant Raw Binary Chunk Route (High Speed Zero-Overhead Pathway)
+            if (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || data instanceof Blob) {
+                let buffer;
+                if (data instanceof ArrayBuffer) {
+                    buffer = data;
+                } else if (data.buffer && data.buffer instanceof ArrayBuffer) {
+                    buffer = data.buffer;
+                } else if (data instanceof Blob) {
+                    buffer = await data.arrayBuffer();
+                }
+                if (buffer) handleIncomingChunk(buffer);
+                return;
+            }
 
             if (data.type === 'pair_handshake_req') {
                 const securityShieldActive = localStorage.getItem('limeshare_require_approval') !== 'false';
@@ -1335,16 +1357,6 @@
                 }
                 showProgressUI(`Resuming: ${data.name}`);
                 updateProgressUI(receivedSize, data.size);
-            } 
-            else if (data.size > 50 * 1024 * 1024 && 'showSaveFilePicker' in window) {
-                if (partial) {
-                    delete activePartialTransfers[fileId];
-                    removePartialFromDB(fileId);
-                }
-                receivedChunks = [];
-                receivedSize = 0;
-                document.getElementById('disk-prompt-file-info').innerText = `${data.name} (${formatBytes(data.size)})`;
-                document.getElementById('disk-prompt-card').classList.remove('hidden');
             } else {
                 if (partial) {
                     delete activePartialTransfers[fileId];
@@ -1352,6 +1364,7 @@
                 }
                 receivedChunks = [];
                 receivedSize = 0;
+                // Auto-accept offer immediately for zero-stutter automatic high-speed transfer
                 if (activeDataConn && activeDataConn.open) {
                     activeDataConn.send({ type: 'accept', resumeOffset: 0 });
                 }
@@ -1374,20 +1387,21 @@
                 if (activeDataConn && activeDataConn.open) {
                     activeDataConn.send({ type: 'accept', resumeOffset: 0 });
                 }
-                showProgressUI(`Receiving (RAM): ${incomingMeta.name}`);
+                showProgressUI(`Receiving: ${incomingMeta.name}`);
             }
         }
 
         async function handleIncomingChunk(chunkBuffer) {
+            if (!incomingMeta) return;
             if (writableStream) {
-                await writableStream.write(chunkBuffer);
+                try { await writableStream.write(chunkBuffer); } catch(e) {}
             } else {
                 receivedChunks.push(chunkBuffer);
             }
-            receivedSize += chunkBuffer.byteLength || chunkBuffer.size || 0;
-            if (incomingMeta) updateProgressUI(receivedSize, incomingMeta.size);
+            receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
+            updateProgressUI(receivedSize, incomingMeta.size);
 
-            if (incomingMeta && incomingMeta.fileId && receivedSize % (5 * 1024 * 1024) < currentChunkSize) {
+            if (incomingMeta.fileId && receivedSize % (10 * 1024 * 1024) < CHUNK_SIZE) {
                 savePartialToDB(incomingMeta.fileId, incomingMeta, [...receivedChunks], receivedSize);
             }
         }
@@ -1402,7 +1416,7 @@
             }
 
             if (writableStream) {
-                await writableStream.close();
+                try { await writableStream.close(); } catch(e) {}
                 writableStream = null;
                 const fileObj = { name: incomingMeta.name, size: incomingMeta.size, isDiskSaved: true, isSent: false, timestamp: Date.now() };
                 saveFileToDB(fileObj);
@@ -1486,7 +1500,7 @@
             currentTransferFile = pendingFileQueue.shift();
             lastAttemptedFile = currentTransferFile;
             
-            showProgressUI(`Offering: ${currentTransferFile.name}`);
+            showProgressUI(`Preparing: ${currentTransferFile.name}`);
             const payloadMeta = { 
                 type: 'offer', 
                 name: currentTransferFile.name, 
@@ -1503,25 +1517,25 @@
             }
         }
 
+        /* --- STREAMING_CHUNK:Pumping auto-speed binary chunk pipeline --- */
         async function startStreamingChunks(file, resumeOffset = 0) {
             await requestWakeLock();
             showProgressUI(`${resumeOffset > 0 ? 'Resuming' : 'Sending'}: ${file.name}`);
             updateProgressUI(resumeOffset, file.size);
 
             let offset = resumeOffset;
-            const dataChannel = activeDataConn ? (activeDataConn._dc || activeDataConn.dataChannel || activeDataConn) : null;
-
-            if (dataChannel && 'bufferedAmountLowThreshold' in dataChannel) {
-                try { dataChannel.bufferedAmountLowThreshold = LOW_BUFFER; } catch(e) {}
+            const rawDC = activeDataConn ? (activeDataConn._dc || activeDataConn.dataChannel) : null;
+            if (rawDC) {
+                try { rawDC.binaryType = 'arraybuffer'; } catch(e) {}
+                if ('bufferedAmountLowThreshold' in rawDC) {
+                    try { rawDC.bufferedAmountLowThreshold = LOW_BUFFER; } catch(e) {}
+                }
             }
 
-            currentChunkSize = DEFAULT_CHUNK_SIZE;
-            consecutiveFastDrains = 0;
-            consecutiveBackpressures = 0;
-            updateChunkBadge(currentChunkSize);
+            updateChunkBadge(CHUNK_SIZE);
 
             while (offset < file.size) {
-                // Ensure active data channel is still open
+                // Ensure peer connection is still active
                 if (!isConnected || !activeDataConn || !activeDataConn.open) {
                     preservePartialState();
                     abortTransfer();
@@ -1529,52 +1543,46 @@
                     return;
                 }
 
-                // Adaptive Backpressure Auto-Tuning with fallback timeout
-                if (dataChannel && typeof dataChannel.bufferedAmount === 'number' && dataChannel.bufferedAmount > MAX_BUFFER) {
-                    consecutiveBackpressures++;
-                    consecutiveFastDrains = 0;
+                const currentBuffer = rawDC ? rawDC.bufferedAmount : 0;
 
-                    if (consecutiveBackpressures >= 2 && currentChunkSize > MIN_CHUNK_SIZE) {
-                        currentChunkSize = Math.max(MIN_CHUNK_SIZE, Math.floor(currentChunkSize / 1.5));
-                        updateChunkBadge(currentChunkSize);
-                        consecutiveBackpressures = 0;
-                    }
-
+                // High-Speed Adaptive Flow-Control Drain Wait
+                if (currentBuffer > MAX_BUFFER) {
                     await new Promise(resolve => {
-                        let resolved = false;
-                        const checkInterval = setInterval(() => {
-                            if (!dataChannel || dataChannel.bufferedAmount <= LOW_BUFFER) {
-                                if (!resolved) {
-                                    resolved = true;
-                                    clearInterval(checkInterval);
-                                    if (dataChannel) dataChannel.onbufferedamountlow = null;
+                        let done = false;
+                        const timer = setInterval(() => {
+                            if (!rawDC || rawDC.bufferedAmount <= LOW_BUFFER) {
+                                if (!done) {
+                                    done = true;
+                                    clearInterval(timer);
+                                    if (rawDC) rawDC.onbufferedamountlow = null;
                                     resolve();
                                 }
                             }
-                        }, 40);
+                        }, 10);
 
-                        dataChannel.onbufferedamountlow = () => {
-                            if (!resolved) {
-                                resolved = true;
-                                clearInterval(checkInterval);
-                                dataChannel.onbufferedamountlow = null;
-                                resolve();
-                            }
-                        };
+                        if (rawDC) {
+                            rawDC.onbufferedamountlow = () => {
+                                if (!done) {
+                                    done = true;
+                                    clearInterval(timer);
+                                    rawDC.onbufferedamountlow = null;
+                                    resolve();
+                                }
+                            };
+                        }
                     });
-                } else {
-                    consecutiveFastDrains++;
-                    if (consecutiveFastDrains >= 8 && currentChunkSize < MAX_CHUNK_SIZE) {
-                        currentChunkSize = Math.min(MAX_CHUNK_SIZE, Math.floor(currentChunkSize * 1.5));
-                        updateChunkBadge(currentChunkSize);
-                        consecutiveFastDrains = 0;
-                    }
                 }
 
-                const slice = file.slice(offset, offset + currentChunkSize);
+                const slice = file.slice(offset, offset + CHUNK_SIZE);
                 try {
                     const chunkData = await slice.arrayBuffer();
-                    activeDataConn.send({ type: 'chunk', chunk: chunkData });
+
+                    // Send raw zero-copy binary directly across native WebRTC data channel
+                    if (rawDC && rawDC.readyState === 'open') {
+                        rawDC.send(chunkData);
+                    } else {
+                        activeDataConn.send(chunkData);
+                    }
 
                     offset += chunkData.byteLength;
                     updateProgressUI(offset, file.size);
@@ -1587,6 +1595,7 @@
                 }
             }
 
+            // Signal end of file transfer
             try {
                 activeDataConn.send({ type: 'end' });
             } catch(err) {}
@@ -1610,7 +1619,7 @@
             currentTransferFile = null;
             lastAttemptedFile = null;
             resetFileInputs();
-            setTimeout(processNextFileInQueue, 150);
+            setTimeout(processNextFileInQueue, 100);
         }
 
         function abortTransfer() {
