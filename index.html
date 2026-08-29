@@ -3,38 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LimeShare • Local Wi-Fi Direct Peer Drop</title>
+    <title>LimeShare • Wi-Fi Direct Peer Share</title>
     
-    <!-- SEO & Metadata -->
-    <meta name="description" content="LimeShare is a fast, secure local Wi-Fi peer-to-peer file sharing and clipboard tool. Direct device-to-device transfer with zero cloud storage.">
-    <meta name="keywords" content="local wifi file share, P2P file transfer, airdrop alternative, wifi drop, direct device transfer, local network share">
+    <!-- Primary Meta & Search Engine Optimization Tags -->
+    <meta name="description" content="LimeShare is a private, lightning-fast peer-to-peer (P2P) local Wi-Fi file sharing tool. Direct device-to-device file transfer with zero cloud storage.">
+    <meta name="keywords" content="P2P file transfer, local wifi share, direct drop, AirDrop for Android and Windows, encrypted peer sharing, no cloud transfer">
     <meta name="author" content="LimeShare">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#84cc16">
 
     <!-- Open Graph -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="LimeShare • Local Wi-Fi Peer Drop">
-    <meta property="og:description" content="Fast, private device-to-device local Wi-Fi file sharing and clipboard sync. Zero cloud storage.">
-    <meta property="og:image" content="https://placehold.co/1200x630/84cc16/ffffff?text=LimeShare+Local+WiFi">
+    <meta property="og:title" content="LimeShare • Fast Local P2P Wi-Fi Share">
+    <meta property="og:description" content="Share unlimited files directly across your local Wi-Fi or Hotspot at maximum speeds. No internet needed once connected.">
+    <meta property="og:image" content="https://placehold.co/1200x630/84cc16/ffffff?text=LimeShare+Direct+Drop">
 
     <!-- Web App Manifest for PWA Support -->
     <link rel="manifest" id="pwa-manifest-link">
 
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS for modern responsive styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class'
         }
     </script>
-
-    <!-- External Libraries -->
+    <!-- PeerJS for WebRTC Direct P2P signaling -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- QRCode.js for peer device code scanning -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Html5-QRCode for Webcam QR Scanner -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- JSZip for in-browser file compression and ZIP archiving -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- MQTT for Local Subnet Mesh Discovery -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
 
     <style>
@@ -48,7 +52,7 @@
             --accent-secondary: #22c55e;
             --accent-dark: #15803d;
             --card-bg: rgba(255, 255, 255, 0.92);
-            --card-border: rgba(226, 232, 240, 0.85);
+            --card-border: rgba(226, 232, 240, 0.8);
             --text-main: #0f172a;
             --text-sub: #64748b;
             --node-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.25);
@@ -61,8 +65,8 @@
             --accent-primary: #a3e635;
             --accent-secondary: #4ade80;
             --accent-dark: #16a34a;
-            --card-bg: rgba(15, 23, 18, 0.9);
-            --card-border: rgba(34, 197, 94, 0.22);
+            --card-bg: rgba(15, 23, 18, 0.88);
+            --card-border: rgba(34, 197, 94, 0.2);
             --text-main: #f0fdf4;
             --text-sub: #86efac;
             --node-shadow: 0 10px 30px -5px rgba(74, 222, 128, 0.3);
@@ -75,7 +79,7 @@
             --accent-primary: #38bdf8;
             --accent-secondary: #818cf8;
             --accent-dark: #0284c7;
-            --card-bg: rgba(15, 23, 42, 0.92);
+            --card-bg: rgba(15, 23, 42, 0.9);
             --card-border: rgba(56, 189, 248, 0.25);
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
@@ -94,12 +98,12 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* Radar Visualizer Container */
+        /* Concentric Wi-Fi Radar Canvas Layout */
         .radar-container {
             position: relative;
             width: 100%;
             max-width: 800px;
-            height: 480px;
+            height: 520px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -114,24 +118,25 @@
             transition: all 0.5s ease;
         }
 
-        .radar-circle-1 { width: 200px; height: 200px; }
-        .radar-circle-2 { width: 340px; height: 340px; }
-        .radar-circle-3 { width: 480px; height: 480px; }
-        .radar-circle-4 { width: 640px; height: 640px; }
+        .radar-circle-1 { width: 220px; height: 220px; }
+        .radar-circle-2 { width: 380px; height: 380px; }
+        .radar-circle-3 { width: 540px; height: 540px; }
+        .radar-circle-4 { width: 700px; height: 700px; }
 
         @media (max-width: 767px) {
             .radar-container {
-                height: 350px;
+                height: 360px;
                 width: 100%;
                 max-width: 100vw;
+                overflow: visible;
             }
             .radar-circle-1 { width: 130px; height: 130px; }
             .radar-circle-2 { width: 210px; height: 210px; }
             .radar-circle-3 { width: 280px; height: 280px; }
             .radar-circle-4 { width: 340px; height: 340px; max-width: 90vw; max-height: 90vw; }
-            .radar-pulse { width: 240px; height: 240px; max-width: 78vw; max-height: 78vw; }
-            .upload-circle-btn { width: 130px; height: 130px; }
-            .upload-circle-btn h2 { font-size: 0.85rem; }
+            .radar-pulse { width: 250px; height: 250px; max-width: 78vw; max-height: 78vw; }
+            .upload-circle-btn { width: 135px; height: 135px; }
+            .upload-circle-btn h2 { font-size: 0.875rem; }
         }
 
         @keyframes radarSweep {
@@ -142,8 +147,8 @@
 
         .radar-pulse {
             position: absolute;
-            width: 380px;
-            height: 380px;
+            width: 400px;
+            height: 400px;
             border-radius: 50%;
             border: 1.5px solid var(--accent-primary);
             animation: radarSweep 4s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
@@ -154,11 +159,10 @@
             animation-delay: -2s;
         }
 
-        /* Upload Button */
         .upload-circle-btn {
             position: relative;
-            width: 165px;
-            height: 165px;
+            width: 175px;
+            height: 175px;
             border-radius: 50%;
             background: white;
             box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08), 0 0 0 8px rgba(132, 204, 22, 0.15);
@@ -192,6 +196,10 @@
         .upload-circle-btn:hover {
             transform: scale(1.05);
             box-shadow: 0 25px 50px -12px var(--node-shadow), 0 0 0 12px rgba(132, 204, 22, 0.25);
+        }
+
+        .upload-circle-btn:hover .upload-circle-ring {
+            transform: rotate(180deg);
         }
 
         .glass-panel {
@@ -229,25 +237,26 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-lime-500 selection:text-white">
 
-    <header class="w-full max-w-7xl mx-auto px-3 sm:px-6 py-3.5 flex items-center justify-between z-30">
-        <!-- Logo & Network Scope -->
+    <!-- Top Header Bar -->
+    <header class="w-full max-w-7xl mx-auto px-4 md:px-8 py-3.5 flex items-center justify-between z-30">
+        <!-- Brand Logo -->
         <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.reload()">
             <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-lime-400 to-green-600 flex items-center justify-center text-white shadow-lg shadow-lime-500/30">
                 <i data-lucide="wifi" class="w-5 h-5 text-white"></i>
             </div>
             <div>
                 <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-extrabold text-lime-600 bg-lime-500/10 px-1.5 py-0.5 rounded border border-lime-500/30 uppercase tracking-wider">Wi-Fi Direct</span>
-                    <h1 class="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">LimeShare</h1>
+                    <span class="text-xs font-semibold text-lime-600 tracking-wider uppercase">P2P</span>
+                    <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">LimeShare</h1>
                 </div>
-                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Local Network Peer Drop</p>
+                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Wi-Fi Direct Peer Drop</p>
             </div>
         </div>
 
-        <!-- Header Controls -->
+        <!-- Header Actions & Controls -->
         <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
-            <!-- 6-Digit Device Code Button -->
-            <button id="connect-device-btn" onclick="openPairingModal()" class="glass-panel px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-1.5 hover:border-lime-500 transition shadow-sm" title="Connect Device via 6-Digit Code / QR">
+            <!-- 6-Digit Device Code Badge -->
+            <button onclick="openPairingModal()" class="glass-panel px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 hover:border-lime-500 transition shadow-sm" title="Your Unique Device Code">
                 <span id="conn-status-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
                 <span id="my-code-display" class="font-mono text-lime-600 dark:text-lime-400 font-extrabold">------</span>
                 <i data-lucide="qr-code" class="w-3.5 h-3.5 text-slate-400"></i>
@@ -259,23 +268,23 @@
                 <span class="hidden md:inline">Install</span>
             </button>
 
-            <!-- Guide Modal Button -->
-            <button onclick="openGuideModal()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="How it Works">
+            <!-- Symbolic Guide Modal Button -->
+            <button onclick="openHowToUseModal()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Visual Guide">
                 <i data-lucide="help-circle" class="w-4 h-4"></i>
             </button>
 
-            <!-- Audio Mute Toggle -->
-            <button id="audio-toggle-btn" onclick="toggleAudioMute()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Toggle Sound">
+            <!-- Mute Audio Toggle -->
+            <button id="audio-toggle-btn" onclick="toggleAudioMute()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Mute/Unmute Audio">
                 <i id="audio-icon-on" data-lucide="volume-2" class="w-4 h-4 text-emerald-500"></i>
                 <i id="audio-icon-off" data-lucide="volume-x" class="w-4 h-4 text-rose-500 hidden"></i>
             </button>
 
-            <!-- Symbolic Theme Toggle Button -->
+            <!-- Single Symbolic Theme Toggle Button -->
             <button id="theme-toggle-btn" onclick="cycleTheme()" class="glass-panel p-2 rounded-full border text-slate-700 dark:text-slate-200 hover:text-lime-600 transition active:scale-95 flex items-center justify-center" title="Toggle Theme (Lime / Dark / Cyber)">
                 <i id="theme-icon" data-lucide="sun" class="w-4 h-4 text-lime-500"></i>
             </button>
 
-            <!-- 1-Click Magic Wi-Fi Link Button -->
+            <!-- 1-Click Magic Link Button -->
             <button onclick="copyPairingLink()" class="theme-accent-btn px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow">
                 <i data-lucide="link" class="w-3.5 h-3.5"></i>
                 <span class="hidden sm:inline">Magic Link</span>
@@ -285,62 +294,61 @@
 
     <main class="flex-1 flex flex-col items-center justify-center relative px-2 sm:px-4 py-2 my-auto w-full overflow-hidden">
         
-        <!-- Local Wi-Fi Radar Mesh View -->
-        <div class="w-full flex flex-col items-center justify-center">
-            <div class="radar-container">
-                <div class="radar-pulse"></div>
-                <div class="radar-pulse"></div>
+        <!-- Radar Ring Background Visualizer -->
+        <div class="radar-container">
+            <div class="radar-pulse"></div>
+            <div class="radar-pulse"></div>
 
-                <div class="radar-circle radar-circle-1"></div>
-                <div class="radar-circle radar-circle-2"></div>
-                <div class="radar-circle radar-circle-3"></div>
-                <div class="radar-circle radar-circle-4"></div>
+            <div class="radar-circle radar-circle-1"></div>
+            <div class="radar-circle radar-circle-2"></div>
+            <div class="radar-circle radar-circle-3"></div>
+            <div class="radar-circle radar-circle-4"></div>
 
-                <!-- Central Upload Hub -->
-                <div class="relative flex flex-col items-center justify-center z-20">
-                    <div id="upload-circle" class="upload-circle-btn group" onclick="triggerFileUpload()">
-                        <div class="upload-circle-ring"></div>
-                        <input type="file" id="file-input" multiple class="hidden">
-                        
-                        <h2 class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight group-hover:text-lime-600 transition">Upload Files</h2>
-                        <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Click or Drop</p>
-                    </div>
-
-                    <!-- Upload Folder Button -->
-                    <div class="mt-4">
-                        <label onclick="handleFolderClick(event)" class="glass-panel hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold px-4 py-1.5 rounded-full border shadow-md flex items-center gap-2 cursor-pointer transition active:scale-95">
-                            <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden" onchange="handleFolderSelect(event)">
-                            <i data-lucide="folder" class="w-3.5 h-3.5 text-lime-600"></i>
-                            <span>Upload Folder</span>
-                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-lime-600"></i>
-                        </label>
-                    </div>
-
-                    <!-- User Node -->
-                    <div class="mt-3 flex flex-col items-center">
-                        <div id="my-avatar-ring" class="w-11 h-11 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow-lg text-slate-800 dark:text-white transition-all">
-                            <i data-lucide="radio" class="w-5 h-5 text-lime-500 animate-pulse"></i>
-                        </div>
-                        <div class="flex items-center gap-1 mt-1 cursor-pointer hover:text-lime-500 transition" onclick="editMyName()" title="Click to edit display name">
-                            <p id="my-name-display" class="text-xs font-extrabold text-slate-800 dark:text-white">You</p>
-                            <i data-lucide="edit-3" class="w-3 h-3 text-slate-400"></i>
-                        </div>
-                        <p id="radar-status-text" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Wi-Fi Ready</p>
-                    </div>
+            <!-- Central Content Focus (Dropzone) -->
+            <div class="relative flex flex-col items-center justify-center z-20">
+                
+                <!-- Central Circular Button -->
+                <div id="upload-circle" class="upload-circle-btn group" onclick="triggerFileUpload()">
+                    <div class="upload-circle-ring"></div>
+                    <input type="file" id="file-input" multiple class="hidden">
+                    
+                    <h2 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight group-hover:text-lime-600 transition">Upload Files</h2>
+                    <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Click or Drop</p>
                 </div>
 
-                <!-- Discovered Peers Layer -->
-                <div id="radar-peers-layer" class="absolute inset-0 pointer-events-none z-30"></div>
+                <!-- Upload Folder Button attached below center -->
+                <div class="mt-5">
+                    <label onclick="handleFolderClick(event)" class="glass-panel hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold px-5 py-2 rounded-full border shadow-md flex items-center gap-2 cursor-pointer transition active:scale-95">
+                        <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden" onchange="handleFolderSelect(event)">
+                        <i data-lucide="folder" class="w-3.5 h-3.5 text-lime-600"></i>
+                        <span>Upload Folder</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-lime-600"></i>
+                    </label>
+                </div>
+
+                <!-- "You" Device Avatar Node -->
+                <div class="mt-4 flex flex-col items-center">
+                    <div id="my-avatar-ring" class="w-12 h-12 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow-lg text-slate-800 dark:text-white transition-all">
+                        <i data-lucide="radio" class="w-6 h-6 text-lime-500 animate-pulse"></i>
+                    </div>
+                    <div class="flex items-center gap-1 mt-1.5 cursor-pointer hover:text-lime-500 transition" onclick="editMyName()" title="Click to edit display name">
+                        <p id="my-name-display" class="text-xs font-extrabold text-slate-800 dark:text-white">You</p>
+                        <i data-lucide="edit-3" class="w-3 h-3 text-slate-400"></i>
+                    </div>
+                    <p id="radar-status-text" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Wi-Fi Direct Ready</p>
+                </div>
             </div>
+
+            <!-- Dynamic Orbiting Peer Nodes Layer -->
+            <div id="radar-peers-layer" class="absolute inset-0 pointer-events-none z-30"></div>
         </div>
     </main>
 
-    <!-- Active Transfer Progress Card Overlay -->
     <div id="progress-card" class="fixed bottom-24 left-1/2 -translate-x-1/2 max-w-md w-[92%] glass-panel p-4 rounded-2xl border shadow-2xl z-40 hidden space-y-2.5">
         <div class="flex justify-between items-center text-xs font-bold">
             <span id="file-info-label" class="text-slate-800 dark:text-white truncate max-w-[170px]">Transferring File...</span>
             <div class="flex items-center gap-2">
-                <span id="chunk-size-badge" class="bg-lime-500/10 border border-lime-500/30 text-lime-600 dark:text-lime-400 text-[9px] px-1.5 py-0.5 rounded-md font-mono">Auto 128KB</span>
+                <span id="chunk-size-badge" class="bg-lime-500/10 border border-lime-500/30 text-lime-600 dark:text-lime-400 text-[9px] px-1.5 py-0.5 rounded-md font-mono" title="Adaptive Dynamic Chunk Auto-Tuned">Auto 128KB</span>
                 <span id="speed-label" class="text-lime-600 dark:text-lime-400 font-mono text-xs">0 MB/s</span>
             </div>
         </div>
@@ -376,17 +384,16 @@
         </button>
     </div>
 
-    <!-- Bottom Dock Control Bar -->
     <footer class="w-full max-w-lg mx-auto px-4 pb-4 z-30">
         <div class="glass-panel p-1.5 rounded-2xl border shadow-xl flex items-center justify-between text-xs font-bold gap-1">
-            <button id="dock-btn-main" onclick="switchDockTab('main')" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-lime-500 to-green-600 text-white shadow flex items-center justify-center gap-1.5 transition">
+            <button id="dock-btn-radar" onclick="switchDockTab('radar')" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-lime-500 to-green-600 text-white shadow flex items-center justify-center gap-1.5 transition">
                 <i data-lucide="radar" class="w-4 h-4"></i>
                 <span>Radar Mesh</span>
             </button>
             <button id="dock-btn-history" onclick="switchDockTab('history')" class="flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition">
                 <i data-lucide="folder-down" class="w-4 h-4"></i>
                 <span>Files & History</span>
-                <span id="history-badge-count" class="bg-lime-500 text-white text-[9px] px-1.5 py-0.5 rounded-full hidden">0</span>
+                <span id="history-badge-count" class="bg-lime-500 text-white text-[9px] px-1.5 py-0.2 rounded-full hidden">0</span>
             </button>
             <button id="dock-btn-clip" onclick="switchDockTab('clip')" class="flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition">
                 <i data-lucide="clipboard" class="w-4 h-4"></i>
@@ -429,23 +436,23 @@
         </div>
     </div>
 
-    <!-- Drawer Modal 2: Live Clipboard & Voice Note -->
+    <!-- Drawer Modal 2: Live Clipboard & Voice Talk -->
     <div id="drawer-clip" class="fixed inset-0 bg-black/60 backdrop-blur-md hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="glass-panel max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] flex flex-col shadow-2xl border">
             <div class="flex justify-between items-center border-b pb-3 border-slate-200 dark:border-slate-800">
-                <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">Live Wi-Fi Clipboard & Voice Talk</h3>
+                <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">Live Clipboard & Voice Talk</h3>
                 <button onclick="closeDrawers()" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
             <div class="space-y-3">
-                <textarea id="clip-text-input" rows="3" onkeydown="handleClipKeyDown(event)" placeholder="Paste text, code snippet, WiFi password, or link here... (Enter to send, Shift+Enter for new line)" 
+                <textarea id="clip-text-input" rows="3" onkeydown="handleClipKeyDown(event)" placeholder="Paste text, code snippet, WiFi password, or URL here... (Press Enter to send, Shift+Enter for new line)" 
                           class="w-full glass-panel border rounded-2xl p-3 text-xs font-mono focus:outline-none focus:border-lime-500 transition resize-none text-slate-900 dark:text-white"></textarea>
                 <div class="flex gap-2">
                     <button onclick="sendLiveText()" class="flex-1 theme-accent-btn py-2.5 rounded-xl text-xs font-extrabold shadow transition active:scale-95 flex items-center justify-center gap-2">
                         <i data-lucide="send" class="w-4 h-4"></i>
-                        Send Live Snippet
+                        Send Live Text Snippet
                     </button>
                     <button id="voice-rec-btn" onclick="toggleVoiceRecording()" class="glass-panel border border-lime-500/40 hover:bg-lime-500/10 text-lime-600 dark:text-lime-400 py-2.5 px-3.5 rounded-xl text-xs font-extrabold transition active:scale-95 flex items-center justify-center gap-1.5 flex-shrink-0" title="Voice Talk / Record Audio Note">
                         <i id="voice-rec-icon" data-lucide="mic" class="w-4 h-4 text-lime-500"></i>
@@ -456,8 +463,8 @@
 
             <div class="space-y-2 flex-1 overflow-y-auto pt-2">
                 <div class="flex justify-between items-center">
-                    <h4 class="text-[10px] font-black uppercase tracking-wider text-slate-400">Snippet & Voice History</h4>
-                    <button onclick="clearSnippetHistory()" class="text-xs font-bold text-slate-400 hover:text-rose-500 transition">Clear</button>
+                    <h4 class="text-[10px] font-black uppercase tracking-wider text-slate-400">Snippet & Voice Log</h4>
+                    <button onclick="clearSnippetHistory()" class="text-xs font-bold text-slate-400 hover:text-rose-500 transition">Clear Log</button>
                 </div>
                 <div id="snippet-list" class="space-y-2">
                     <p id="empty-snippets" class="text-center text-xs text-slate-400 py-4 font-medium">No snippets shared yet</p>
@@ -466,7 +473,6 @@
         </div>
     </div>
 
-    <!-- Modal: Direct Wi-Fi Pairing Code & Scanner -->
     <div id="pair-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
         <div class="glass-panel max-w-sm w-full rounded-3xl p-6 space-y-4 text-center shadow-2xl relative border">
             <button onclick="closePairingModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
@@ -509,7 +515,7 @@
                 <div class="flex gap-2">
                     <input type="text" id="peer-id-input" maxlength="6" placeholder="6-DIGIT CODE" 
                            class="flex-1 glass-panel border rounded-xl px-3 py-2 font-mono font-bold text-center tracking-widest uppercase text-sm focus:outline-none focus:border-lime-500 transition text-slate-900 dark:text-white">
-                    <button onclick="connectToPeer()" class="theme-accent-btn px-5 py-2 rounded-xl text-xs font-bold transition active:scale-95 shadow">
+                    <button id="modal-pair-btn" onclick="connectToPeer()" class="theme-accent-btn px-5 py-2 rounded-xl text-xs font-bold transition active:scale-95 shadow">
                         Pair
                     </button>
                 </div>
@@ -517,7 +523,7 @@
         </div>
     </div>
 
-    <!-- Modal: Incoming Direct Pairing Gate -->
+    <!-- Security Approval Gate Modal -->
     <div id="pair-request-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
         <div class="glass-panel max-w-sm w-full rounded-3xl p-6 space-y-4 text-center shadow-2xl relative border">
             <div class="w-12 h-12 mx-auto bg-lime-500/20 text-lime-600 dark:text-lime-400 rounded-2xl flex items-center justify-center border border-lime-500/30">
@@ -526,7 +532,7 @@
             <div>
                 <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">Incoming Pair Request</h3>
                 <p id="pair-request-peer-id" class="text-sm font-mono font-bold text-lime-600 dark:text-lime-400 mt-1">Device #------</p>
-                <p class="text-xs text-slate-400 mt-1">An external device is requesting direct P2P connection.</p>
+                <p class="text-xs text-slate-400 mt-1">An external device is requesting to connect to your LimeShare session.</p>
             </div>
             <div class="flex gap-2 pt-2">
                 <button onclick="rejectPairingRequest()" class="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 font-bold py-2.5 rounded-xl text-xs transition">
@@ -539,8 +545,8 @@
         </div>
     </div>
 
-    <!-- Modal: Symbolic Guide -->
-    <div id="guide-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+    <!-- Symbolic Guide Modal -->
+    <div id="how-to-use-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
         <div class="glass-panel max-w-md w-full rounded-3xl p-6 space-y-5 relative shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border">
             <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3 flex-shrink-0">
                 <div class="flex items-center gap-2">
@@ -549,7 +555,7 @@
                     </div>
                     <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">How LimeShare Works</h3>
                 </div>
-                <button onclick="closeGuideModal()" class="p-1 rounded-full text-slate-400 hover:text-slate-600">
+                <button onclick="closeHowToUseModal()" class="p-1 rounded-full text-slate-400 hover:text-slate-600">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -587,15 +593,15 @@
                     <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
                         <i data-lucide="wifi" class="w-5 h-5 text-lime-500 flex-shrink-0"></i>
                         <div>
-                            <p class="text-[11px] font-bold leading-tight">Same Wi-Fi</p>
-                            <p class="text-[9px] text-slate-400">No data quota used</p>
+                            <p class="text-[11px] font-bold leading-tight">Hotspot / Wi-Fi</p>
+                            <p class="text-[9px] text-slate-400">Zero mobile data</p>
                         </div>
                     </div>
                     <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
-                        <i data-lucide="lock" class="w-5 h-5 text-emerald-500 flex-shrink-0"></i>
+                        <i data-lucide="shield-check" class="w-5 h-5 text-emerald-500 flex-shrink-0"></i>
                         <div>
-                            <p class="text-[11px] font-bold leading-tight">Private P2P</p>
-                            <p class="text-[9px] text-slate-400">0 Cloud Storage</p>
+                            <p class="text-[11px] font-bold leading-tight">Internet-Proof</p>
+                            <p class="text-[9px] text-slate-400">No WAN disconnect</p>
                         </div>
                     </div>
                     <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
@@ -614,7 +620,7 @@
                     </div>
                 </div>
 
-                <!-- OS Compatibility Symbolic Row -->
+                <!-- OS Compatibility Row -->
                 <div class="glass-panel p-2.5 border rounded-2xl flex items-center justify-around text-slate-400 text-[10px] font-bold">
                     <span class="flex items-center gap-1"><i data-lucide="laptop" class="w-3.5 h-3.5 text-lime-500"></i> Windows / Mac</span>
                     <span>•</span>
@@ -624,7 +630,7 @@
                 </div>
             </div>
 
-            <button onclick="closeGuideModal()" class="w-full theme-accent-btn py-2.5 rounded-xl text-xs font-bold transition shadow flex-shrink-0">
+            <button onclick="closeHowToUseModal()" class="w-full theme-accent-btn py-2.5 rounded-xl text-xs font-bold transition shadow flex-shrink-0">
                 Close Guide
             </button>
         </div>
@@ -656,19 +662,18 @@
 
     <script>
         // High Speed Protocol Constants
-        const MIN_CHUNK_SIZE = 32768;   // 32KB
-        const MAX_CHUNK_SIZE = 524288;  // 512KB
-        const DEFAULT_CHUNK_SIZE = 131072; // 128KB
-        const MAX_BUFFER = 4 * 1024 * 1024; // 4MB
-        const LOW_BUFFER = 1 * 1024 * 1024; // 1MB
-        const PEER_PREFIX = "ls-local-wifi-";
+        const MIN_CHUNK_SIZE = 32768;   // 32KB Minimum
+        const MAX_CHUNK_SIZE = 524288;  // 512KB Maximum
+        const DEFAULT_CHUNK_SIZE = 131072; // 128KB Starting chunk
+        const MAX_BUFFER = 4 * 1024 * 1024; // 4MB Backpressure limit
+        const LOW_BUFFER = 1 * 1024 * 1024; // 1MB Drain threshold
+        const PEER_PREFIX = "ls-lan-v6-";
 
-        // Application State
+        // Global Application State Variables
         let currentChunkSize = DEFAULT_CHUNK_SIZE;
         let consecutiveFastDrains = 0;
         let consecutiveBackpressures = 0;
 
-        // User Identity
         let myID = null;
         let myUserName = localStorage.getItem('limeshare_user_name');
         if (!myUserName) {
@@ -680,30 +685,20 @@
             localStorage.setItem('limeshare_user_name', myUserName);
         }
 
-        // Networking State
         let peer = null;
         let activeDataConn = null;
         let isConnected = false;
         let connectingPeerID = null;
         let connectionWatchdogTimer = null;
-        let heartbeatInterval = null;
+        let dataChannelHeartbeat = null;
         let broadcastChannel = null;
         let mqttClient = null;
-        let localSubnetKey = 'local_lan_default';
-
+        
         let connectedPeerID = null;
         let pendingPeerRequest = null;
         let isAudioMuted = localStorage.getItem('limeshare_audio_muted') === 'true';
         let lastChimeTime = 0;
 
-        // Voice Recording State
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let isRecordingVoice = false;
-        let voiceTimerInterval = null;
-        let voiceRecordStartTime = 0;
-
-        // File & Snippet Queues
         let fileHistory = [];
         let selectedFileIndices = new Set();
         let snippetHistory = [];
@@ -725,7 +720,7 @@
         let wakeLock = null;
         let deferredPrompt = null;
 
-        // Public MQTT Broker Cluster used purely for local subnet key coordination
+        // Fallback discovery brokers for initial signaling exchange
         const MQTT_BROKERS = [
             'wss://broker.emqx.io:8084/mqtt',
             'wss://broker.hivemq.com:8884/mqtt',
@@ -746,6 +741,24 @@
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
         }
 
+        function triggerFileUpload() {
+            if (!isConnected || !activeDataConn) {
+                openPairingModal();
+                showToast("Pair with a device to send files", "lime");
+                return;
+            }
+            document.getElementById('file-input').click();
+        }
+
+        function handleFolderClick(e) {
+            if (!isConnected || !activeDataConn) {
+                e.preventDefault();
+                openPairingModal();
+                showToast("Pair with a device to send files", "lime");
+            }
+        }
+
+        /* --- STREAMING_CHUNK:Configuring WebRTC and Direct LAN DataChannel --- */
         function initPeer() {
             myID = localStorage.getItem('limeshare_my_id');
             if (!myID || myID.length !== 6) {
@@ -769,9 +782,10 @@
                 });
             }
 
-            setupLocalPresenceBeacon();
+            setupPresenceBeacon();
 
             try {
+                // Configure STUN for initial signaling, with ICE candidates configured to bind directly to local LAN host pairs
                 peer = new Peer(PEER_PREFIX + myID, {
                     debug: 1,
                     config: {
@@ -780,6 +794,8 @@
                             { urls: 'stun:stun1.l.google.com:19302' },
                             { urls: 'stun:stun.cloudflare.com:3478' }
                         ],
+                        iceTransportPolicy: 'all',
+                        iceCandidatePoolSize: 10,
                         sdpSemantics: 'unified-plan'
                     }
                 });
@@ -789,14 +805,31 @@
                     checkUrlAutoPair();
                 });
 
+                // CRITICAL FIX: If PeerJS cloud signaling drops (e.g. internet down on hotspot),
+                // DO NOT abort active P2P transfers! Active RTCDataChannel runs 100% on local Wi-Fi.
+                peer.on('disconnected', () => {
+                    if (isConnected && activeDataConn && activeDataConn.open) {
+                        updateRadarStatus("Direct LAN (Internet Offline)");
+                    } else {
+                        updateRadarStatus("Reconnecting signaling...");
+                        if (peer && !peer.destroyed) {
+                            try { peer.reconnect(); } catch(e) {}
+                        }
+                    }
+                });
+
                 peer.on('connection', (incomingConn) => {
                     setupDataConnection(incomingConn, false);
                 });
 
                 peer.on('error', (err) => {
+                    // Ignore signaling errors if we already have an active direct data channel
+                    if (isConnected && activeDataConn && activeDataConn.open) {
+                        return;
+                    }
                     clearConnectionWatchdog();
                     if (err.type === 'peer-unavailable') {
-                        showToast("Device offline or code incorrect.", "rose");
+                        showToast("Peer offline or code incorrect.", "rose");
                         updateRadarStatus("Peer Unavailable");
                     } else if (err.type === 'unavailable-id') {
                         regenerateDeviceCode();
@@ -811,52 +844,72 @@
             }
         }
 
-        async function setupLocalPresenceBeacon() {
-            // Compute local network subnet hash from public gateway IP
-            try {
-                const res = await Promise.race([
-                    fetch('https://api.ipify.org?format=json').then(r => r.json()),
-                    fetch('https://cloudflare.com/cdn-cgi/trace').then(r => r.text()).then(t => {
-                        const match = t.match(/ip=(.+)/);
-                        return match ? { ip: match[1].trim() } : null;
-                    })
-                ]).catch(() => null);
-
-                if (res && res.ip) {
-                    localSubnetKey = res.ip.replace(/[^a-zA-Z0-9]/g, '_');
-                }
-            } catch (e) {}
-
-            const localSubnetTopic = `limeshare_local_v7/${localSubnetKey}`;
+        /* --- STREAMING_CHUNK:Configuring local discovery beacon --- */
+        function setupPresenceBeacon() {
+            const topicRoom = `limeshare_lan_mesh_v6`;
 
             if (!broadcastChannel && 'BroadcastChannel' in window) {
-                broadcastChannel = new BroadcastChannel('limeshare_local_channel');
+                broadcastChannel = new BroadcastChannel('limeshare_local_lan_ch');
             }
 
             if (broadcastChannel) {
                 broadcastChannel.onmessage = (event) => {
-                    handlePresenceMessage(event.data);
+                    const data = event.data;
+                    if (!data || data.senderID === myID) return;
+
+                    if (data.type === 'presence_ping') {
+                        registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
+                        broadcastChannel.postMessage({ 
+                            type: 'presence_pong', 
+                            senderID: myID, 
+                            userName: myUserName, 
+                            targetID: data.senderID, 
+                            deviceType: isMobileDevice() ? 'mobile' : 'laptop' 
+                        });
+                    } else if (data.type === 'presence_pong') {
+                        if (data.targetID === myID || !data.targetID) {
+                            registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
+                        }
+                    }
                 };
             }
 
             function connectMqttBroker(brokerIndex = 0) {
                 if (brokerIndex >= MQTT_BROKERS.length) return;
                 try {
-                    mqttClient = mqtt.connect(MQTT_BROKERS[brokerIndex], {
+                    const brokerUrl = MQTT_BROKERS[brokerIndex];
+                    mqttClient = mqtt.connect(brokerUrl, {
                         clientId: 'ls_' + myID + '_' + Math.random().toString(16).substr(2, 6),
                         keepalive: 10,
                         connectTimeout: 4000
                     });
 
                     mqttClient.on('connect', () => {
-                        mqttClient.subscribe(localSubnetTopic);
+                        mqttClient.subscribe(topicRoom);
                         sendPresencePing();
                     });
 
                     mqttClient.on('message', (t, message) => {
                         try {
                             const data = JSON.parse(message.toString());
-                            handlePresenceMessage(data);
+                            if (!data || !data.senderID || data.senderID === myID) return;
+
+                            if (data.type === 'presence_ping') {
+                                registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
+                                if (mqttClient && mqttClient.connected) {
+                                    mqttClient.publish(topicRoom, JSON.stringify({
+                                        type: 'presence_pong',
+                                        senderID: myID,
+                                        userName: myUserName,
+                                        targetID: data.senderID,
+                                        deviceType: isMobileDevice() ? 'mobile' : 'laptop'
+                                    }));
+                                }
+                            } else if (data.type === 'presence_pong') {
+                                if (data.targetID === myID || !data.targetID) {
+                                    registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
+                                }
+                            }
                         } catch(e) {}
                     });
 
@@ -879,9 +932,10 @@
                     timestamp: Date.now(),
                     deviceType: isMobileDevice() ? 'mobile' : 'laptop'
                 };
+
                 if (broadcastChannel) broadcastChannel.postMessage(payload);
                 if (mqttClient && mqttClient.connected) {
-                    mqttClient.publish(localSubnetTopic, JSON.stringify(payload));
+                    mqttClient.publish(topicRoom, JSON.stringify(payload));
                 }
             };
 
@@ -896,33 +950,10 @@
                         delete discoveredPeers[id];
                     }
                 });
+
                 sendPresencePing();
                 renderRadarPeers();
             }, 3500);
-        }
-
-        function handlePresenceMessage(data) {
-            if (!data || !data.senderID || data.senderID === myID) return;
-
-            if (data.type === 'presence_ping') {
-                registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
-                const pong = {
-                    type: 'presence_pong',
-                    senderID: myID,
-                    userName: myUserName,
-                    targetID: data.senderID,
-                    deviceType: isMobileDevice() ? 'mobile' : 'laptop'
-                };
-                const localSubnetTopic = `limeshare_local_v7/${localSubnetKey}`;
-                if (broadcastChannel) broadcastChannel.postMessage(pong);
-                if (mqttClient && mqttClient.connected) {
-                    mqttClient.publish(localSubnetTopic, JSON.stringify(pong));
-                }
-            } else if (data.type === 'presence_pong') {
-                if (data.targetID === myID || !data.targetID) {
-                    registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
-                }
-            }
         }
 
         function registerDiscoveredPeer(peerID, deviceType = 'laptop', userName = '') {
@@ -930,7 +961,7 @@
             discoveredPeers[peerID] = {
                 lastSeen: Date.now(),
                 deviceType: deviceType || 'laptop',
-                userName: userName || `Device #${peerID}`
+                userName: userName || discoveredPeers[peerID]?.userName || `Device #${peerID}`
             };
             renderRadarPeers();
         }
@@ -1022,6 +1053,7 @@
             lucide.createIcons();
         }
 
+        /* --- STREAMING_CHUNK:Managing direct P2P connections and handshakes --- */
         function connectToPeer(overrideID) {
             const input = document.getElementById('peer-id-input');
             const rawInput = (overrideID || (input ? input.value : '')).trim();
@@ -1071,7 +1103,7 @@
                 setupDataConnection(conn, true);
             } catch (err) {
                 abortConnectionAttempt();
-                showToast("WebRTC connection failed.", "rose");
+                showToast("Failed to initiate WebRTC connection.", "rose");
             }
 
             closePairingModal();
@@ -1115,10 +1147,13 @@
             });
 
             conn.on('close', () => {
+                // If data channel itself closes, gracefully preserve partial progress
+                preservePartialState();
                 disconnectPeer(false);
             });
 
             conn.on('error', () => {
+                preservePartialState();
                 disconnectPeer(false);
             });
         }
@@ -1135,14 +1170,17 @@
                 finalizeConnection(data.senderID, data.userName);
             }
             else if (data.type === 'pair_handshake_reject') {
-                showToast("Pairing was declined by peer.", "rose");
+                showToast("Pairing was declined by remote peer.", "rose");
                 abortConnectionAttempt();
             }
-            else if (data.type === 'ping') {
-                try { conn.send({ type: 'pong' }); } catch(e) {}
+            else if (data.type === 'direct_lan_ping') {
+                try { conn.send({ type: 'direct_lan_pong' }); } catch(e) {}
+            }
+            else if (data.type === 'direct_lan_pong') {
+                // Direct local LAN socket is verified healthy
             }
             else if (data.type === 'disconnect') {
-                showToast("Peer ended the session", "rose");
+                showToast("Remote peer ended the session", "rose");
                 preservePartialState();
                 disconnectPeer(false);
             }
@@ -1166,7 +1204,11 @@
                 if (currentTransferFile || lastAttemptedFile) {
                     const activeFile = currentTransferFile || lastAttemptedFile;
                     currentTransferFile = activeFile;
-                    startStreamingChunks(activeFile, data.resumeOffset || 0);
+                    const resumeOffset = data.resumeOffset || 0;
+                    if (resumeOffset > 0) {
+                        showToast(`Resuming ${activeFile.name} from ${formatBytes(resumeOffset)}`, "lime");
+                    }
+                    startStreamingChunks(activeFile, resumeOffset);
                 }
             }
             else if (data.type === 'chunk') {
@@ -1185,35 +1227,49 @@
 
             registerDiscoveredPeer(peerID, 'laptop', peerName);
             playChime('connect');
-            updateRadarStatus("Connected • P2P Linked");
+            updateRadarStatus("Direct LAN Linked • 0 Data");
 
             const dot = document.getElementById('conn-status-dot');
             if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
 
+            const myAvatar = document.getElementById('my-avatar-ring');
+            if (myAvatar) myAvatar.className = "w-12 h-12 rounded-full glass-panel border-2 border-emerald-500 bg-emerald-500/10 flex items-center justify-center shadow-lg text-emerald-500";
+
             renderRadarPeers();
             showToast(`Directly Paired with #${peerID}!`, "emerald");
 
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
-            heartbeatInterval = setInterval(() => {
-                if (isConnected && activeDataConn && activeDataConn.open) {
-                    try { activeDataConn.send({ type: 'ping' }); } catch(e) {}
-                }
-            }, 3000);
+            // Local DataChannel direct heartbeat (strictly across local Wi-Fi, never touching internet)
+            startDirectLanHeartbeat();
 
             if (pendingFileQueue.length > 0 && !isTransferring) {
+                showToast("Starting pending transfers...", "lime");
                 processNextFileInQueue();
             }
+        }
+
+        function startDirectLanHeartbeat() {
+            if (dataChannelHeartbeat) clearInterval(dataChannelHeartbeat);
+            dataChannelHeartbeat = setInterval(() => {
+                if (isConnected && activeDataConn && activeDataConn.open) {
+                    try { activeDataConn.send({ type: 'direct_lan_ping' }); } catch(e) {}
+                }
+            }, 3000);
         }
 
         function disconnectPeer(notifyRemote = true) {
             if (notifyRemote && activeDataConn && activeDataConn.open) {
                 try { activeDataConn.send({ type: 'disconnect' }); } catch(e) {}
             }
+
             if (activeDataConn) {
                 try { activeDataConn.close(); } catch(e) {}
                 activeDataConn = null;
             }
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
+
+            if (dataChannelHeartbeat) {
+                clearInterval(dataChannelHeartbeat);
+                dataChannelHeartbeat = null;
+            }
 
             clearConnectionWatchdog();
             isConnected = false;
@@ -1224,11 +1280,14 @@
             const dot = document.getElementById('conn-status-dot');
             if (dot) dot.className = "w-2 h-2 rounded-full bg-slate-400";
 
+            const myAvatar = document.getElementById('my-avatar-ring');
+            if (myAvatar) myAvatar.className = "w-12 h-12 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow-lg text-slate-800 dark:text-white";
+
             releaseWakeLock();
             hideProgressUI();
-            updateRadarStatus("Online • Ready");
+            updateRadarStatus("Wi-Fi Direct Ready");
             renderRadarPeers();
-            showToast("Direct connection closed", "rose");
+            showToast("Session disconnected", "rose");
         }
 
         function acceptPairingRequest() {
@@ -1250,155 +1309,7 @@
             abortConnectionAttempt();
         }
 
-        function triggerFileUpload() {
-            if (!isConnected || !activeDataConn) {
-                openPairingModal();
-                showToast("Pair with a device to send files", "lime");
-                return;
-            }
-            document.getElementById('file-input').click();
-        }
-
-        function handleFolderClick(e) {
-            if (!isConnected || !activeDataConn) {
-                e.preventDefault();
-                openPairingModal();
-                showToast("Pair with a device to send files", "lime");
-            }
-        }
-
-        function queueFilesForTransfer(files) {
-            if (!isConnected || !activeDataConn) {
-                openPairingModal();
-                showToast("Pair with a device first", "lime");
-                resetFileInputs();
-                return;
-            }
-
-            pendingFileQueue.push(...files);
-            if (!isTransferring) {
-                processNextFileInQueue();
-            }
-        }
-
-        function processNextFileInQueue() {
-            if (pendingFileQueue.length === 0) {
-                isTransferring = false;
-                currentTransferFile = null;
-                return;
-            }
-
-            isTransferring = true;
-            currentTransferFile = pendingFileQueue.shift();
-            lastAttemptedFile = currentTransferFile;
-            
-            showProgressUI(`Offering: ${currentTransferFile.name}`);
-            const payloadMeta = { 
-                type: 'offer', 
-                name: currentTransferFile.name, 
-                size: currentTransferFile.size, 
-                mime: currentTransferFile.type || detectMimeByName(currentTransferFile.name) 
-            };
-            
-            try {
-                activeDataConn.send(payloadMeta);
-            } catch(err) {
-                showToast("Send error.", "rose");
-                preservePartialState();
-                abortTransfer();
-            }
-        }
-
-        async function startStreamingChunks(file, resumeOffset = 0) {
-            await requestWakeLock();
-            showProgressUI(`${resumeOffset > 0 ? 'Resuming' : 'Sending'}: ${file.name}`);
-            updateProgressUI(resumeOffset, file.size);
-
-            let offset = resumeOffset;
-            const dataChannel = activeDataConn ? (activeDataConn.dataChannel || activeDataConn) : null;
-
-            if (dataChannel && 'bufferedAmountLowThreshold' in dataChannel) {
-                dataChannel.bufferedAmountLowThreshold = LOW_BUFFER;
-            }
-
-            currentChunkSize = DEFAULT_CHUNK_SIZE;
-            consecutiveFastDrains = 0;
-            consecutiveBackpressures = 0;
-            updateChunkBadge(currentChunkSize);
-
-            while (offset < file.size) {
-                if (!isConnected || !activeDataConn || !activeDataConn.open) {
-                    preservePartialState();
-                    abortTransfer();
-                    releaseWakeLock();
-                    return;
-                }
-
-                if (dataChannel && dataChannel.bufferedAmount > MAX_BUFFER) {
-                    consecutiveBackpressures++;
-                    consecutiveFastDrains = 0;
-
-                    if (consecutiveBackpressures >= 2 && currentChunkSize > MIN_CHUNK_SIZE) {
-                        currentChunkSize = Math.max(MIN_CHUNK_SIZE, Math.floor(currentChunkSize / 1.5));
-                        updateChunkBadge(currentChunkSize);
-                        consecutiveBackpressures = 0;
-                    }
-
-                    await new Promise(resolve => {
-                        dataChannel.onbufferedamountlow = () => {
-                            dataChannel.onbufferedamountlow = null;
-                            resolve();
-                        };
-                    });
-                } else {
-                    consecutiveFastDrains++;
-                    if (consecutiveFastDrains >= 8 && currentChunkSize < MAX_CHUNK_SIZE) {
-                        currentChunkSize = Math.min(MAX_CHUNK_SIZE, Math.floor(currentChunkSize * 1.5));
-                        updateChunkBadge(currentChunkSize);
-                        consecutiveFastDrains = 0;
-                    }
-                }
-
-                const slice = file.slice(offset, offset + currentChunkSize);
-                try {
-                    const chunkData = await slice.arrayBuffer();
-                    activeDataConn.send({ type: 'chunk', chunk: chunkData });
-
-                    offset += chunkData.byteLength;
-                    updateProgressUI(offset, file.size);
-                } catch(err) {
-                    showToast("Transfer interrupted.", "rose");
-                    preservePartialState();
-                    abortTransfer();
-                    releaseWakeLock();
-                    return;
-                }
-            }
-
-            try { activeDataConn.send({ type: 'end' }); } catch(err) {}
-
-            playChime('complete');
-            releaseWakeLock();
-            showToast(`${file.name} sent successfully!`, "emerald");
-
-            const fileObj = {
-                name: file.name,
-                size: file.size,
-                mime: file.type || detectMimeByName(file.name),
-                blob: file,
-                url: URL.createObjectURL(file),
-                isSent: true
-            };
-            saveFileToDB(fileObj);
-            addFileToHistory(fileObj);
-
-            hideProgressUI();
-            currentTransferFile = null;
-            lastAttemptedFile = null;
-            resetFileInputs();
-            setTimeout(processNextFileInQueue, 150);
-        }
-
+        /* --- STREAMING_CHUNK:Implementing high-throughput chunk streaming engine --- */
         async function handleFileOffer(data) {
             const fileId = `${data.name}_${data.size}`;
             incomingMeta = { ...data, fileId };
@@ -1496,6 +1407,7 @@
             incomingMeta = null;
             receivedChunks = [];
             receivedSize = 0;
+
             hideProgressUI();
             resetFileInputs();
         }
@@ -1511,14 +1423,14 @@
                 savePartialToDB(fileId, incomingMeta, [...receivedChunks], receivedSize);
                 showToast(`Paused at ${formatBytes(receivedSize)}. Re-pair to resume!`, "amber");
             }
-        }
 
-        function abortTransfer() {
-            isTransferring = false;
-            currentTransferFile = null;
-            lastAttemptedFile = null;
-            releaseWakeLock();
-            hideProgressUI();
+            const targetFile = currentTransferFile || lastAttemptedFile;
+            if (targetFile) {
+                const exists = pendingFileQueue.some(f => f.name === targetFile.name && f.size === targetFile.size);
+                if (!exists) {
+                    pendingFileQueue.unshift(targetFile);
+                }
+            }
         }
 
         function handleFolderSelect(event) {
@@ -1534,6 +1446,157 @@
             if (folderInput) folderInput.value = '';
         }
 
+        function queueFilesForTransfer(files) {
+            if (!isConnected || !activeDataConn) {
+                openPairingModal();
+                showToast("Please pair with a device first", "lime");
+                resetFileInputs();
+                return;
+            }
+
+            pendingFileQueue.push(...files);
+            if (!isTransferring) {
+                processNextFileInQueue();
+            }
+        }
+
+        function processNextFileInQueue() {
+            if (pendingFileQueue.length === 0) {
+                isTransferring = false;
+                currentTransferFile = null;
+                return;
+            }
+
+            if (!isConnected || !activeDataConn || !activeDataConn.open) {
+                showToast("Connection lost. Please re-pair.", "rose");
+                abortTransfer();
+                return;
+            }
+
+            isTransferring = true;
+            currentTransferFile = pendingFileQueue.shift();
+            lastAttemptedFile = currentTransferFile;
+            
+            showProgressUI(`Offering: ${currentTransferFile.name}`);
+            const payloadMeta = { 
+                type: 'offer', 
+                name: currentTransferFile.name, 
+                size: currentTransferFile.size, 
+                mime: currentTransferFile.type || detectMimeByName(currentTransferFile.name) 
+            };
+            
+            try {
+                activeDataConn.send(payloadMeta);
+            } catch(err) {
+                showToast("Connection send error.", "rose");
+                preservePartialState();
+                abortTransfer();
+            }
+        }
+
+        async function startStreamingChunks(file, resumeOffset = 0) {
+            await requestWakeLock();
+            showProgressUI(`${resumeOffset > 0 ? 'Resuming' : 'Sending'}: ${file.name}`);
+            updateProgressUI(resumeOffset, file.size);
+
+            let offset = resumeOffset;
+            const dataChannel = activeDataConn ? (activeDataConn.dataChannel || activeDataConn) : null;
+
+            if (dataChannel && 'bufferedAmountLowThreshold' in dataChannel) {
+                dataChannel.bufferedAmountLowThreshold = LOW_BUFFER;
+            }
+
+            currentChunkSize = DEFAULT_CHUNK_SIZE;
+            consecutiveFastDrains = 0;
+            consecutiveBackpressures = 0;
+            updateChunkBadge(currentChunkSize);
+
+            while (offset < file.size) {
+                // Ensure active data channel is still open
+                if (!isConnected || !activeDataConn || !activeDataConn.open) {
+                    preservePartialState();
+                    abortTransfer();
+                    releaseWakeLock();
+                    return;
+                }
+
+                // Adaptive Backpressure Auto-Tuning
+                if (dataChannel && dataChannel.bufferedAmount > MAX_BUFFER) {
+                    consecutiveBackpressures++;
+                    consecutiveFastDrains = 0;
+
+                    if (consecutiveBackpressures >= 2 && currentChunkSize > MIN_CHUNK_SIZE) {
+                        currentChunkSize = Math.max(MIN_CHUNK_SIZE, Math.floor(currentChunkSize / 1.5));
+                        updateChunkBadge(currentChunkSize);
+                        consecutiveBackpressures = 0;
+                    }
+
+                    await new Promise(resolve => {
+                        dataChannel.onbufferedamountlow = () => {
+                            dataChannel.onbufferedamountlow = null;
+                            resolve();
+                        };
+                    });
+                } else {
+                    consecutiveFastDrains++;
+                    if (consecutiveFastDrains >= 8 && currentChunkSize < MAX_CHUNK_SIZE) {
+                        currentChunkSize = Math.min(MAX_CHUNK_SIZE, Math.floor(currentChunkSize * 1.5));
+                        updateChunkBadge(currentChunkSize);
+                        consecutiveFastDrains = 0;
+                    }
+                }
+
+                const slice = file.slice(offset, offset + currentChunkSize);
+                try {
+                    const chunkData = await slice.arrayBuffer();
+                    activeDataConn.send({ type: 'chunk', chunk: chunkData });
+
+                    offset += chunkData.byteLength;
+                    updateProgressUI(offset, file.size);
+                } catch(err) {
+                    showToast("Transfer interrupted.", "rose");
+                    preservePartialState();
+                    abortTransfer();
+                    releaseWakeLock();
+                    return;
+                }
+            }
+
+            try {
+                activeDataConn.send({ type: 'end' });
+            } catch(err) {}
+
+            playChime('complete');
+            releaseWakeLock();
+            showToast(`${file.name} sent successfully!`, "emerald");
+
+            const fileObj = {
+                name: file.name,
+                size: file.size,
+                mime: file.type || detectMimeByName(file.name),
+                blob: file,
+                url: URL.createObjectURL(file),
+                isSent: true
+            };
+            saveFileToDB(fileObj);
+            addFileToHistory(fileObj);
+
+            hideProgressUI();
+            currentTransferFile = null;
+            lastAttemptedFile = null;
+            resetFileInputs();
+            setTimeout(processNextFileInQueue, 150);
+        }
+
+        function abortTransfer() {
+            isTransferring = false;
+            currentTransferFile = null;
+            lastAttemptedFile = null;
+            releaseWakeLock();
+            hideProgressUI();
+        }
+
+        /* --- STREAMING_CHUNK:Configuring UI helpers and speed visualizer --- */
         let speedHistory = new Array(30).fill(0);
         let lastTime = Date.now();
         let lastBytes = 0;
@@ -1586,6 +1649,7 @@
             if (timeDiff >= 0.15) {
                 const bytesDiff = current - lastBytes;
                 const speedBytesPerSec = bytesDiff / timeDiff;
+                
                 document.getElementById('speed-label').innerText = formatSpeed(speedBytesPerSec);
                 
                 speedHistory.push(speedBytesPerSec);
@@ -1596,7 +1660,7 @@
                 lastBytes = current;
             }
 
-            const percent = Math.min(100, Math.round((current / Math.max(total, 1)) * 100));
+            const percent = Math.min(100, Math.round((current / total) * 100));
             document.getElementById('progress-bar').style.width = percent + '%';
             document.getElementById('percent-label').innerText = percent + '%';
             document.getElementById('transferred-bytes').innerText = `${formatBytes(current)} / ${formatBytes(total)}`;
@@ -1641,6 +1705,200 @@
             renderFileHistory();
         }
 
+        async function clearFileHistory() {
+            fileHistory = [];
+            selectedFileIndices.clear();
+            await clearDBFiles();
+            renderFileHistory();
+        }
+
+        function toggleSelectAll(checked) {
+            if (checked) {
+                fileHistory.forEach((_, idx) => selectedFileIndices.add(idx));
+            } else {
+                selectedFileIndices.clear();
+            }
+            renderFileHistory();
+        }
+
+        function toggleFileSelection(index, checked) {
+            if (checked) {
+                selectedFileIndices.add(index);
+            } else {
+                selectedFileIndices.delete(index);
+            }
+            updateBatchUI();
+        }
+
+        function updateBatchUI() {
+            const selectAllCb = document.getElementById('select-all-files');
+            const batchZipBtn = document.getElementById('batch-zip-btn');
+            const batchDlBtn = document.getElementById('batch-download-btn');
+            const batchDelBtn = document.getElementById('batch-delete-btn');
+            const zipCount = document.getElementById('selected-count-zip');
+            const dlCount = document.getElementById('selected-count-dl');
+
+            const count = selectedFileIndices.size;
+            const total = fileHistory.length;
+
+            if (selectAllCb) {
+                selectAllCb.checked = (total > 0 && count === total);
+                selectAllCb.classList.toggle('hidden', total === 0);
+            }
+
+            if (batchZipBtn && batchDlBtn && batchDelBtn) {
+                if (count > 0) {
+                    batchZipBtn.classList.remove('hidden');
+                    batchDlBtn.classList.remove('hidden');
+                    batchDelBtn.classList.remove('hidden');
+                    if (zipCount) zipCount.innerText = count;
+                    if (dlCount) dlCount.innerText = count;
+                } else {
+                    batchZipBtn.classList.add('hidden');
+                    batchDlBtn.classList.add('hidden');
+                    batchDelBtn.classList.add('hidden');
+                }
+            }
+        }
+
+        async function downloadSelectedAsZip() {
+            if (typeof JSZip === 'undefined') return showToast("ZIP engine loading...", "amber");
+
+            const indices = selectedFileIndices.size > 0 ? Array.from(selectedFileIndices) : fileHistory.map((_, i) => i);
+            if (indices.length === 0) return showToast("No files available to zip", "rose");
+
+            showToast(`Creating ZIP archive for ${indices.length} file(s)...`, "lime");
+
+            try {
+                const zip = new JSZip();
+                for (let i = 0; i < indices.length; i++) {
+                    const file = fileHistory[indices[i]];
+                    if (file) {
+                        if (file.blob) zip.file(file.name, file.blob);
+                        else if (file.url) {
+                            const res = await fetch(file.url);
+                            zip.file(file.name, await res.blob());
+                        }
+                    }
+                }
+
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `LimeShare_Archive_${Date.now()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+                showToast("ZIP archive downloaded!", "emerald");
+            } catch (err) {
+                showToast("Failed to create ZIP archive", "rose");
+            }
+        }
+
+        async function downloadSelectedFiles() {
+            if (selectedFileIndices.size === 0) return;
+            const indices = Array.from(selectedFileIndices);
+            showToast(`Downloading ${indices.length} file(s)...`, "emerald");
+
+            for (let i = 0; i < indices.length; i++) {
+                const file = fileHistory[indices[i]];
+                if (file && file.url) {
+                    const a = document.createElement('a');
+                    a.href = file.url;
+                    a.download = file.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    await new Promise(r => setTimeout(r, 250));
+                }
+            }
+        }
+
+        async function deleteSelectedFiles() {
+            if (selectedFileIndices.size === 0) return;
+            const count = selectedFileIndices.size;
+            
+            fileHistory = fileHistory.filter((_, idx) => !selectedFileIndices.has(idx));
+            selectedFileIndices.clear();
+            
+            if (db) {
+                try {
+                    const tx = db.transaction('files', 'readwrite');
+                    const store = tx.objectStore('files');
+                    store.clear();
+                    fileHistory.forEach(file => {
+                        store.add({
+                            name: file.name,
+                            size: file.size,
+                            mime: file.mime,
+                            blob: file.blob || null,
+                            isSent: file.isSent || false,
+                            isDiskSaved: file.isDiskSaved || false,
+                            timestamp: Date.now()
+                        });
+                    });
+                } catch(e) {}
+            }
+
+            renderFileHistory();
+            showToast(`Deleted ${count} file(s)`, "rose");
+        }
+
+        function renderFileHistory() {
+            const list = document.getElementById('file-list');
+            const countBadge = document.getElementById('history-badge-count');
+            if (!list) return;
+
+            list.innerHTML = '';
+            if (countBadge) {
+                countBadge.innerText = fileHistory.length;
+                countBadge.classList.toggle('hidden', fileHistory.length === 0);
+            }
+
+            if (fileHistory.length === 0) {
+                selectedFileIndices.clear();
+                updateBatchUI();
+                list.innerHTML = `<p id="empty-state" class="text-center text-xs text-slate-400 py-8 font-medium">No files sent or received yet</p>`;
+                return;
+            }
+
+            fileHistory.forEach((file, index) => {
+                const mime = file.mime || detectMimeByName(file.name);
+                const isMedia = mime && (mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/') || mime === 'application/pdf' || mime.startsWith('text/'));
+                const isChecked = selectedFileIndices.has(index);
+
+                const row = document.createElement('div');
+                row.className = `flex justify-between items-center p-3 glass-panel border rounded-2xl transition-all ${isChecked ? 'border-lime-500 bg-lime-500/10' : ''}`;
+                
+                let badgeLabel = file.isSent ? 'Sent' : (file.isDiskSaved ? 'Disk Saved' : 'Received');
+                let badgeColor = file.isSent ? 'text-lime-600 bg-lime-500/10 border-lime-500/30' : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30';
+
+                row.innerHTML = `
+                    <div class="flex items-center gap-2.5 truncate mr-2">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleFileSelection(${index}, this.checked)" class="rounded w-4 h-4 accent-lime-500 cursor-pointer flex-shrink-0">
+                        <div class="truncate">
+                            <div class="flex items-center gap-2 truncate">
+                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badgeColor}">${badgeLabel}</span>
+                                <p class="text-xs font-bold text-slate-800 dark:text-white truncate">${escapeHtml(file.name)}</p>
+                            </div>
+                            <p class="text-[10px] text-slate-400 font-mono mt-0.5">${formatBytes(file.size)}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5 flex-shrink-0">
+                        ${(isMedia && file.url) ? `<button onclick="openMediaPreviewByIndex(${index})" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Preview</button>` : ''}
+                        ${file.url ? `<a href="${file.url}" download="${escapeHtml(file.name)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Save</a>` : ''}
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+
+            updateBatchUI();
+        }
+
+        /* --- STREAMING_CHUNK:Handling Live Clipboard, Voice Talk, and UI Tabs --- */
         function setupDragAndDrop() {
             const circle = document.getElementById('upload-circle');
             const fileInput = document.getElementById('file-input');
@@ -1670,6 +1928,49 @@
             }
         }
 
+        function switchDockTab(tab) {
+            closeDrawers();
+            const btnRadar = document.getElementById('dock-btn-radar');
+            const btnHistory = document.getElementById('dock-btn-history');
+            const btnClip = document.getElementById('dock-btn-clip');
+
+            btnRadar.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+            btnHistory.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+            btnClip.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+
+            if (tab === 'history') {
+                btnHistory.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+                document.getElementById('drawer-history').classList.remove('hidden');
+            } else if (tab === 'clip') {
+                btnClip.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+                document.getElementById('drawer-clip').classList.remove('hidden');
+            } else {
+                btnRadar.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+            }
+        }
+
+        function closeDrawers() {
+            document.getElementById('drawer-history').classList.add('hidden');
+            document.getElementById('drawer-clip').classList.add('hidden');
+        }
+
+        function openPairingModal() {
+            document.getElementById('pair-modal').classList.remove('hidden');
+        }
+
+        function closePairingModal() {
+            document.getElementById('pair-modal').classList.add('hidden');
+            stopQRScanner();
+        }
+
+        function openHowToUseModal() {
+            document.getElementById('how-to-use-modal').classList.remove('hidden');
+        }
+
+        function closeHowToUseModal() {
+            document.getElementById('how-to-use-modal').classList.add('hidden');
+        }
+
         function handleClipKeyDown(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -1677,59 +1978,11 @@
             }
         }
 
-        function sendLiveText() {
-            const input = document.getElementById('clip-text-input');
-            const text = input.value.trim();
-            if (!text) return;
-
-            if (activeDataConn && activeDataConn.open) {
-                activeDataConn.send({ type: 'text_snippet', text: text });
-            } else {
-                openPairingModal();
-                showToast("Pair with a device to send snippets", "lime");
-                return;
-            }
-
-            renderTextSnippet(text, true, true);
-            input.value = '';
-            showToast("Snippet sent!", "emerald");
-        }
-
-        function renderTextSnippet(text, isSent = false, saveToDatabase = true) {
-            if (saveToDatabase) {
-                saveSnippetToDB({ text, isSent, timestamp: Date.now() });
-            }
-
-            const list = document.getElementById('snippet-list');
-            const emptyState = document.getElementById('empty-snippets');
-            if (emptyState) emptyState.remove();
-
-            const row = document.createElement('div');
-            row.className = "p-3 glass-panel border rounded-2xl space-y-1.5";
-            row.innerHTML = `
-                <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 font-mono">
-                    <span>${isSent ? 'Sent Snippet' : 'Received Snippet'}</span>
-                    <button onclick="copyToClipboard('${escapeHtml(text)}')" class="text-lime-600 dark:text-lime-400 hover:underline">Copy</button>
-                </div>
-                <p class="text-xs font-mono text-slate-800 dark:text-white whitespace-pre-wrap break-all">${escapeHtml(text)}</p>
-            `;
-            list.prepend(row);
-        }
-
-        function clearSnippetHistory() {
-            snippetHistory = [];
-            if (db) {
-                try {
-                    const tx = db.transaction('snippets', 'readwrite');
-                    tx.objectStore('snippets').clear();
-                } catch(e) {}
-            }
-            const list = document.getElementById('snippet-list');
-            if (list) {
-                list.innerHTML = `<p id="empty-snippets" class="text-center text-xs text-slate-400 py-4 font-medium">No snippets shared yet</p>`;
-            }
-            showToast("Snippet log cleared", "rose");
-        }
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecordingVoice = false;
+        let voiceTimerInterval = null;
+        let voiceRecordStartTime = 0;
 
         async function toggleVoiceRecording() {
             const btn = document.getElementById('voice-rec-btn');
@@ -1737,12 +1990,6 @@
             const label = document.getElementById('voice-rec-label');
 
             if (!isRecordingVoice) {
-                if (!isConnected || !activeDataConn || !activeDataConn.open) {
-                    openPairingModal();
-                    showToast("Pair with a device to send voice notes", "lime");
-                    return;
-                }
-
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     audioChunks = [];
@@ -1781,7 +2028,7 @@
 
                     showToast("Voice Talk recording started...", "lime");
                 } catch (err) {
-                    showToast("Microphone permission required", "rose");
+                    showToast("Microphone permission required for Voice Talk", "rose");
                 }
             } else {
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -1820,420 +2067,126 @@
             lucide.createIcons();
         }
 
-        function initDB() {
-            return new Promise((resolve) => {
-                try {
-                    const req = indexedDB.open('LimeShareLocalV7', 1);
-                    req.onupgradeneeded = (e) => {
-                        const database = e.target.result;
-                        if (!database.objectStoreNames.contains('files')) {
-                            database.createObjectStore('files', { keyPath: 'id', autoIncrement: true });
-                        }
-                        if (!database.objectStoreNames.contains('snippets')) {
-                            database.createObjectStore('snippets', { keyPath: 'id', autoIncrement: true });
-                        }
-                        if (!database.objectStoreNames.contains('partials')) {
-                            database.createObjectStore('partials', { keyPath: 'fileId' });
-                        }
-                    };
-                    req.onsuccess = (e) => {
-                        db = e.target.result;
-                        loadHistoryFromDB();
-                        resolve(db);
-                    };
-                    req.onerror = () => resolve(null);
-                } catch (err) {
-                    resolve(null);
-                }
-            });
-        }
-
-        function saveFileToDB(fileObj) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('files', 'readwrite');
-                tx.objectStore('files').add({
-                    name: fileObj.name,
-                    size: fileObj.size,
-                    mime: fileObj.mime,
-                    blob: fileObj.blob || null,
-                    isSent: fileObj.isSent || false,
-                    isDiskSaved: fileObj.isDiskSaved || false,
-                    timestamp: Date.now()
-                });
-            } catch(e) {}
-        }
-
-        function saveSnippetToDB(snippetObj) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('snippets', 'readwrite');
-                tx.objectStore('snippets').add(snippetObj);
-            } catch(e) {}
-        }
-
-        function savePartialToDB(fileId, meta, chunks, receivedSize) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('partials', 'readwrite');
-                tx.objectStore('partials').put({
-                    fileId: fileId,
-                    meta: meta,
-                    chunks: chunks,
-                    receivedSize: receivedSize,
-                    timestamp: Date.now()
-                });
-            } catch(e) {}
-        }
-
-        function removePartialFromDB(fileId) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('partials', 'readwrite');
-                tx.objectStore('partials').delete(fileId);
-            } catch(e) {}
-        }
-
-        function loadHistoryFromDB() {
-            if (!db) return;
-            try {
-                const fileTx = db.transaction('files', 'readonly');
-                const fileReq = fileTx.objectStore('files').getAll();
-                fileReq.onsuccess = () => {
-                    fileHistory = (fileReq.result || []).map(f => ({
-                        name: f.name,
-                        size: f.size,
-                        mime: f.mime,
-                        url: f.blob ? URL.createObjectURL(f.blob) : null,
-                        isSent: f.isSent,
-                        isDiskSaved: f.isDiskSaved
-                    })).reverse();
-                    renderFileHistory();
-                };
-
-                const snippetTx = db.transaction('snippets', 'readonly');
-                const snippetReq = snippetTx.objectStore('snippets').getAll();
-                snippetReq.onsuccess = () => {
-                    snippetHistory = (snippetReq.result || []).reverse();
-                    snippetHistory.forEach(s => renderTextSnippet(s.text, s.isSent, false));
-                };
-            } catch(e) {}
-        }
-
-        function renderFileHistory() {
-            const list = document.getElementById('file-list');
-            const countBadge = document.getElementById('history-badge-count');
-            if (!list) return;
-
-            list.innerHTML = '';
-            if (countBadge) {
-                countBadge.innerText = fileHistory.length;
-                countBadge.classList.toggle('hidden', fileHistory.length === 0);
-            }
-
-            if (fileHistory.length === 0) {
-                list.innerHTML = `<p id="empty-state" class="text-center text-xs text-slate-400 py-8 font-medium">No files sent or received yet</p>`;
+        function sendLiveText() {
+            const input = document.getElementById('clip-text-input');
+            const text = input.value.trim();
+            if (!text) return;
+            if (!isConnected || !activeDataConn || !activeDataConn.open) {
+                openPairingModal();
+                showToast("Pair with a device to send snippets", "lime");
                 return;
             }
 
-            fileHistory.forEach((file, index) => {
-                const mime = file.mime || detectMimeByName(file.name);
-                const isMedia = mime && (mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/') || mime === 'application/pdf' || mime.startsWith('text/'));
-                const isChecked = selectedFileIndices.has(index);
-
-                const row = document.createElement('div');
-                row.className = `flex justify-between items-center p-3 glass-panel border rounded-2xl transition-all ${isChecked ? 'border-lime-500 bg-lime-500/10' : ''}`;
-                
-                let badgeLabel = file.isSent ? 'Sent' : 'Received';
-                let badgeColor = file.isSent ? 'text-lime-600 bg-lime-500/10 border-lime-500/30' : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30';
-
-                row.innerHTML = `
-                    <div class="flex items-center gap-2.5 truncate mr-2">
-                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleFileSelection(${index}, this.checked)" class="rounded w-4 h-4 accent-lime-500 cursor-pointer flex-shrink-0">
-                        <div class="truncate">
-                            <div class="flex items-center gap-2 truncate">
-                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badgeColor}">${badgeLabel}</span>
-                                <p class="text-xs font-bold text-slate-800 dark:text-white truncate">${escapeHtml(file.name)}</p>
-                            </div>
-                            <p class="text-[10px] text-slate-400 font-mono mt-0.5">${formatBytes(file.size)}</p>
-                        </div>
-                    </div>
-                    <div class="flex gap-1.5 flex-shrink-0">
-                        ${(isMedia && file.url) ? `<button onclick="openMediaPreviewByIndex(${index})" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Preview</button>` : ''}
-                        ${file.url ? `<a href="${file.url}" download="${escapeHtml(file.name)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Save</a>` : ''}
-                    </div>
-                `;
-                list.appendChild(row);
-            });
-
-            updateBatchUI();
+            activeDataConn.send({ type: 'text_snippet', text: text });
+            renderTextSnippet(text, true, true);
+            input.value = '';
         }
 
-        function toggleFileSelection(index, checked) {
-            if (checked) selectedFileIndices.add(index);
-            else selectedFileIndices.delete(index);
-            updateBatchUI();
-        }
-
-        function toggleSelectAll(checked) {
-            if (checked) fileHistory.forEach((_, idx) => selectedFileIndices.add(idx));
-            else selectedFileIndices.clear();
-            renderFileHistory();
-        }
-
-        function updateBatchUI() {
-            const selectAllCb = document.getElementById('select-all-files');
-            const batchZipBtn = document.getElementById('batch-zip-btn');
-            const batchDlBtn = document.getElementById('batch-download-btn');
-            const batchDelBtn = document.getElementById('batch-delete-btn');
-            const zipCount = document.getElementById('selected-count-zip');
-            const dlCount = document.getElementById('selected-count-dl');
-
-            const count = selectedFileIndices.size;
-            const total = fileHistory.length;
-
-            if (selectAllCb) {
-                selectAllCb.checked = (total > 0 && count === total);
-                selectAllCb.classList.toggle('hidden', total === 0);
+        function renderTextSnippet(text, isSent = false, saveToDatabase = true) {
+            if (saveToDatabase) {
+                saveSnippetToDB({ text, isSent, timestamp: Date.now() });
             }
 
-            if (batchZipBtn && batchDlBtn && batchDelBtn) {
-                if (count > 0) {
-                    batchZipBtn.classList.remove('hidden');
-                    batchDlBtn.classList.remove('hidden');
-                    batchDelBtn.classList.remove('hidden');
-                    if (zipCount) zipCount.innerText = count;
-                    if (dlCount) dlCount.innerText = count;
-                } else {
-                    batchZipBtn.classList.add('hidden');
-                    batchDlBtn.classList.add('hidden');
-                    batchDelBtn.classList.add('hidden');
-                }
-            }
+            const list = document.getElementById('snippet-list');
+            const emptyState = document.getElementById('empty-snippets');
+            if (emptyState) emptyState.remove();
+
+            const row = document.createElement('div');
+            row.className = "p-3 glass-panel border rounded-2xl space-y-1.5";
+            row.innerHTML = `
+                <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 font-mono">
+                    <span>${isSent ? 'Sent Snippet' : 'Received Snippet'}</span>
+                    <button onclick="copyToClipboard('${escapeHtml(text)}')" class="text-lime-600 dark:text-lime-400 hover:underline">Copy</button>
+                </div>
+                <p class="text-xs font-mono text-slate-800 dark:text-white whitespace-pre-wrap break-all">${escapeHtml(text)}</p>
+            `;
+            list.prepend(row);
         }
 
-        async function downloadSelectedAsZip() {
-            if (typeof JSZip === 'undefined') return showToast("ZIP engine loading...", "amber");
-            const indices = selectedFileIndices.size > 0 ? Array.from(selectedFileIndices) : fileHistory.map((_, i) => i);
-            if (indices.length === 0) return showToast("No files available to zip", "rose");
-
-            showToast(`Creating ZIP archive for ${indices.length} file(s)...`, "lime");
-            try {
-                const zip = new JSZip();
-                for (let i = 0; i < indices.length; i++) {
-                    const file = fileHistory[indices[i]];
-                    if (file) {
-                        if (file.blob) zip.file(file.name, file.blob);
-                        else if (file.url) {
-                            const res = await fetch(file.url);
-                            zip.file(file.name, await res.blob());
-                        }
-                    }
-                }
-                const zipBlob = await zip.generateAsync({ type: "blob" });
-                const url = URL.createObjectURL(zipBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `LimeShare_${Date.now()}.zip`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(url), 2000);
-                showToast("ZIP archive downloaded!", "emerald");
-            } catch (err) {
-                showToast("Failed to create ZIP archive", "rose");
-            }
-        }
-
-        async function downloadSelectedFiles() {
-            if (selectedFileIndices.size === 0) return;
-            const indices = Array.from(selectedFileIndices);
-            for (let i = 0; i < indices.length; i++) {
-                const file = fileHistory[indices[i]];
-                if (file && file.url) {
-                    const a = document.createElement('a');
-                    a.href = file.url;
-                    a.download = file.name;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    await new Promise(r => setTimeout(r, 200));
-                }
-            }
-        }
-
-        function deleteSelectedFiles() {
-            if (selectedFileIndices.size === 0) return;
-            fileHistory = fileHistory.filter((_, idx) => !selectedFileIndices.has(idx));
-            selectedFileIndices.clear();
+        function clearSnippetHistory() {
+            snippetHistory = [];
             if (db) {
                 try {
-                    const tx = db.transaction('files', 'readwrite');
-                    const store = tx.objectStore('files');
-                    store.clear();
-                    fileHistory.forEach(file => {
-                        store.add({
-                            name: file.name,
-                            size: file.size,
-                            mime: file.mime,
-                            blob: file.blob || null,
-                            isSent: file.isSent || false,
-                            isDiskSaved: file.isDiskSaved || false,
-                            timestamp: Date.now()
-                        });
-                    });
+                    const tx = db.transaction('snippets', 'readwrite');
+                    tx.objectStore('snippets').clear();
                 } catch(e) {}
             }
-            renderFileHistory();
-            showToast("Selected files deleted", "rose");
-        }
-
-        function clearFileHistory() {
-            fileHistory = [];
-            selectedFileIndices.clear();
-            if (db) {
-                try {
-                    const tx = db.transaction('files', 'readwrite');
-                    tx.objectStore('files').clear();
-                } catch(e) {}
+            const list = document.getElementById('snippet-list');
+            if (list) {
+                list.innerHTML = `<p id="empty-snippets" class="text-center text-xs text-slate-400 py-4 font-medium">No snippets shared yet</p>`;
             }
-            renderFileHistory();
-            showToast("File history cleared", "rose");
+            showToast("Snippet log cleared", "rose");
         }
 
-        function playChime(type) {
-            if (isAudioMuted) return;
-            const now = Date.now();
-            if (type === 'complete' && (now - lastChimeTime < 2000)) return;
-            if (type === 'complete') lastChimeTime = now;
-
-            try {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                if (!AudioCtx) return;
-                const ctx = new AudioCtx();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-
-                const t = ctx.currentTime;
-                if (type === 'connect') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(523.25, t);
-                    osc.frequency.exponentialRampToValueAtTime(659.25, t + 0.12);
-                    gain.gain.setValueAtTime(0.06, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-                    osc.start(t);
-                    osc.stop(t + 0.25);
-                } else if (type === 'complete') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(587.33, t);
-                    osc.frequency.setValueAtTime(880.00, t + 0.08);
-                    gain.gain.setValueAtTime(0.05, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-                    osc.start(t);
-                    osc.stop(t + 0.3);
-                } else if (type === 'text') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(800, t);
-                    gain.gain.setValueAtTime(0.04, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-                    osc.start(t);
-                    osc.stop(t + 0.12);
-                }
-            } catch(e) {}
+        function copyToClipboard(str) {
+            const el = document.createElement('textarea');
+            el.value = str;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast("Copied to clipboard!", "emerald");
         }
 
-        function initTheme() {
-            const saved = localStorage.getItem('limeshare_theme') || 'lime';
-            changeTheme(saved, false);
-            updateAudioToggleUI();
-        }
+        function openMediaPreviewByIndex(index) {
+            const file = fileHistory[index];
+            if (!file || !file.url) return;
 
-        function changeTheme(themeName, showToastMsg = true) {
-            document.documentElement.setAttribute('data-theme', themeName);
-            if (themeName === 'dark-radar' || themeName === 'cyber') {
-                document.documentElement.classList.add('dark');
+            const modal = document.getElementById('preview-modal');
+            const title = document.getElementById('preview-title');
+            const body = document.getElementById('preview-body');
+            const dlBtn = document.getElementById('preview-download-btn');
+
+            const mime = file.mime || detectMimeByName(file.name);
+
+            title.innerText = file.name;
+            dlBtn.href = file.url;
+            dlBtn.download = file.name;
+            body.innerHTML = '';
+
+            if (mime.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = file.url;
+                img.className = "max-h-[55vh] max-w-full object-contain rounded-xl shadow-lg";
+                body.appendChild(img);
+            } else if (mime.startsWith('video/')) {
+                const video = document.createElement('video');
+                video.src = file.url;
+                video.controls = true;
+                video.autoplay = true;
+                video.className = "max-h-[55vh] w-full rounded-xl";
+                body.appendChild(video);
+            } else if (mime.startsWith('audio/')) {
+                const audio = document.createElement('audio');
+                audio.src = file.url;
+                audio.controls = true;
+                audio.autoplay = true;
+                audio.className = "w-full p-4";
+                body.appendChild(audio);
+            } else if (mime === 'application/pdf') {
+                const iframe = document.createElement('iframe');
+                iframe.src = file.url;
+                iframe.className = "w-full h-[50vh] rounded-xl border border-slate-700";
+                body.appendChild(iframe);
+            } else if (mime.startsWith('text/')) {
+                fetch(file.url).then(res => res.text()).then(text => {
+                    const pre = document.createElement('pre');
+                    pre.className = "text-xs font-mono text-slate-800 dark:text-white p-3 glass-panel rounded-xl overflow-auto max-h-[50vh] w-full whitespace-pre-wrap";
+                    pre.innerText = text.slice(0, 10000);
+                    body.appendChild(pre);
+                });
             } else {
-                document.documentElement.classList.remove('dark');
-            }
-            localStorage.setItem('limeshare_theme', themeName);
-
-            const iconEl = document.getElementById('theme-icon');
-            if (iconEl) {
-                if (themeName === 'lime') iconEl.setAttribute('data-lucide', 'sun');
-                else if (themeName === 'dark-radar') iconEl.setAttribute('data-lucide', 'radar');
-                else if (themeName === 'cyber') iconEl.setAttribute('data-lucide', 'zap');
-                lucide.createIcons();
+                body.innerHTML = `<p class="text-xs text-slate-400 p-4">No direct preview available for this file type.</p>`;
             }
 
-            if (showToastMsg) showToast(`Theme: ${themeName.toUpperCase()}`, "lime");
+            modal.classList.remove('hidden');
         }
 
-        function cycleTheme() {
-            const themes = ['lime', 'dark-radar', 'cyber'];
-            const current = localStorage.getItem('limeshare_theme') || 'lime';
-            const nextIdx = (themes.indexOf(current) + 1) % themes.length;
-            changeTheme(themes[nextIdx], true);
-        }
-
-        function toggleAudioMute() {
-            isAudioMuted = !isAudioMuted;
-            localStorage.setItem('limeshare_audio_muted', isAudioMuted ? 'true' : 'false');
-            updateAudioToggleUI();
-            showToast(isAudioMuted ? "Audio Muted" : "Audio Enabled", isAudioMuted ? "amber" : "emerald");
-        }
-
-        function updateAudioToggleUI() {
-            const on = document.getElementById('audio-icon-on');
-            const off = document.getElementById('audio-icon-off');
-            if (on && off) {
-                on.classList.toggle('hidden', isAudioMuted);
-                off.classList.toggle('hidden', !isAudioMuted);
-            }
-        }
-
-        function switchDockTab(tab) {
-            closeDrawers();
-            const btnMain = document.getElementById('dock-btn-main');
-            const btnHist = document.getElementById('dock-btn-history');
-            const btnClip = document.getElementById('dock-btn-clip');
-
-            btnMain.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
-            btnHist.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
-            btnClip.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
-
-            if (tab === 'history') {
-                btnHist.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
-                document.getElementById('drawer-history').classList.remove('hidden');
-            } else if (tab === 'clip') {
-                btnClip.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
-                document.getElementById('drawer-clip').classList.remove('hidden');
-            } else {
-                btnMain.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
-            }
-        }
-
-        function closeDrawers() {
-            document.getElementById('drawer-history').classList.add('hidden');
-            document.getElementById('drawer-clip').classList.add('hidden');
-        }
-
-        function openPairingModal() {
-            document.getElementById('pair-modal').classList.remove('hidden');
-        }
-
-        function closePairingModal() {
-            document.getElementById('pair-modal').classList.add('hidden');
-            stopQRScanner();
-        }
-
-        function openGuideModal() {
-            document.getElementById('guide-modal').classList.remove('hidden');
-        }
-
-        function closeGuideModal() {
-            document.getElementById('guide-modal').classList.add('hidden');
+        function closePreviewModal() {
+            const modal = document.getElementById('preview-modal');
+            const body = document.getElementById('preview-body');
+            if (body) body.innerHTML = '';
+            if (modal) modal.classList.add('hidden');
         }
 
         function toggleQRScanner() {
@@ -2287,130 +2240,6 @@
             }
         }
 
-        function copyPairingLink() {
-            if (!myID) return;
-            const url = new URL(window.location.href);
-            url.searchParams.set('pair', myID);
-            copyToClipboard(url.toString());
-            showToast("Magic Wi-Fi link copied!", "emerald");
-        }
-
-        function checkUrlAutoPair() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const pairParam = urlParams.get('pair');
-            if (pairParam && pairParam.length === 6 && pairParam !== myID) {
-                showToast(`Auto-pairing with #${pairParam}...`, "lime");
-                setTimeout(() => connectToPeer(pairParam), 600);
-            }
-        }
-
-        function regenerateDeviceCode() {
-            if (isConnected) disconnectPeer();
-            myID = Math.floor(100000 + Math.random() * 900000).toString();
-            localStorage.setItem('limeshare_my_id', myID);
-            if (peer && !peer.destroyed) {
-                try { peer.destroy(); } catch(e) {}
-                peer = null;
-            }
-            initPeer();
-            showToast(`New Device Code: #${myID}`, "lime");
-        }
-
-        function editMyName() {
-            const newName = prompt("Enter your display name:", myUserName);
-            if (newName && newName.trim()) {
-                myUserName = newName.trim();
-                localStorage.setItem('limeshare_user_name', myUserName);
-                const el = document.getElementById('my-name-display');
-                if (el) el.innerText = myUserName;
-                showToast(`Display name set to: ${myUserName}`, "emerald");
-                if (typeof sendPresencePing === 'function') sendPresencePing();
-            }
-        }
-
-        function updateRadarStatus(text) {
-            const statusEl = document.getElementById('radar-status-text');
-            if (statusEl) statusEl.innerText = text;
-        }
-
-        function updateChunkBadge(sizeInBytes) {
-            const badge = document.getElementById('chunk-size-badge');
-            if (badge) {
-                const kb = Math.round(sizeInBytes / 1024);
-                badge.innerText = `Auto ${kb}KB`;
-            }
-        }
-
-        function copyToClipboard(str) {
-            const el = document.createElement('textarea');
-            el.value = str;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-            showToast("Copied to clipboard!", "emerald");
-        }
-
-        function openMediaPreviewByIndex(index) {
-            const file = fileHistory[index];
-            if (!file || !file.url) return;
-
-            const modal = document.getElementById('preview-modal');
-            const title = document.getElementById('preview-title');
-            const body = document.getElementById('preview-body');
-            const dlBtn = document.getElementById('preview-download-btn');
-
-            const mime = file.mime || detectMimeByName(file.name);
-            title.innerText = file.name;
-            dlBtn.href = file.url;
-            dlBtn.download = file.name;
-            body.innerHTML = '';
-
-            if (mime.startsWith('image/')) {
-                const img = document.createElement('img');
-                img.src = file.url;
-                img.className = "max-h-[55vh] max-w-full object-contain rounded-xl shadow-lg";
-                body.appendChild(img);
-            } else if (mime.startsWith('video/')) {
-                const video = document.createElement('video');
-                video.src = file.url;
-                video.controls = true;
-                video.autoplay = true;
-                video.className = "max-h-[55vh] w-full rounded-xl";
-                body.appendChild(video);
-            } else if (mime.startsWith('audio/')) {
-                const audio = document.createElement('audio');
-                audio.src = file.url;
-                audio.controls = true;
-                audio.autoplay = true;
-                audio.className = "w-full p-4";
-                body.appendChild(audio);
-            } else if (mime === 'application/pdf') {
-                const iframe = document.createElement('iframe');
-                iframe.src = file.url;
-                iframe.className = "w-full h-[50vh] rounded-xl border border-slate-700";
-                body.appendChild(iframe);
-            } else if (mime.startsWith('text/')) {
-                fetch(file.url).then(res => res.text()).then(text => {
-                    const pre = document.createElement('pre');
-                    pre.className = "text-xs font-mono text-slate-800 dark:text-white p-3 glass-panel rounded-xl overflow-auto max-h-[50vh] w-full whitespace-pre-wrap";
-                    pre.innerText = text.slice(0, 10000);
-                    body.appendChild(pre);
-                });
-            } else {
-                body.innerHTML = `<p class="text-xs text-slate-400 p-4">Preview not available for this file type.</p>`;
-            }
-
-            modal.classList.remove('hidden');
-        }
-
-        function closePreviewModal() {
-            const modal = document.getElementById('preview-modal');
-            const body = document.getElementById('preview-body');
-            if (body) body.innerHTML = '';
-            if (modal) modal.classList.add('hidden');
-        }
-
         function showToast(message, type = "lime") {
             const toast = document.getElementById('status-toast');
             const toastInner = document.getElementById('status-toast-inner');
@@ -2443,6 +2272,7 @@
             }, 3500);
         }
 
+        /* --- STREAMING_CHUNK:PWA manifest injection and installation logic --- */
         function initPwaSupport() {
             const manifestData = {
                 name: "LimeShare Local P2P",
@@ -2529,6 +2359,235 @@
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('limeshare_theme') || 'lime';
+            changeTheme(savedTheme, false);
+            updateAudioToggleUI();
+        }
+
+        function changeTheme(themeName, showToastMsg = true) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            if (themeName === 'dark-radar' || themeName === 'cyber') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            localStorage.setItem('limeshare_theme', themeName);
+
+            const iconEl = document.getElementById('theme-icon');
+            if (iconEl) {
+                if (themeName === 'lime') iconEl.setAttribute('data-lucide', 'sun');
+                else if (themeName === 'dark-radar') iconEl.setAttribute('data-lucide', 'radar');
+                else if (themeName === 'cyber') iconEl.setAttribute('data-lucide', 'zap');
+                lucide.createIcons();
+            }
+
+            if (showToastMsg) showToast(`Theme: ${themeName.toUpperCase()}`, "lime");
+        }
+
+        function cycleTheme() {
+            const themes = ['lime', 'dark-radar', 'cyber'];
+            const current = localStorage.getItem('limeshare_theme') || 'lime';
+            const nextIdx = (themes.indexOf(current) + 1) % themes.length;
+            changeTheme(themes[nextIdx], true);
+        }
+
+        function toggleAudioMute() {
+            isAudioMuted = !isAudioMuted;
+            localStorage.setItem('limeshare_audio_muted', isAudioMuted ? 'true' : 'false');
+            updateAudioToggleUI();
+            showToast(isAudioMuted ? "Sounds Muted" : "Sounds Enabled", isAudioMuted ? "amber" : "emerald");
+        }
+
+        function updateAudioToggleUI() {
+            const iconOn = document.getElementById('audio-icon-on');
+            const iconOff = document.getElementById('audio-icon-off');
+            if (iconOn && iconOff) {
+                if (isAudioMuted) {
+                    iconOn.classList.add('hidden');
+                    iconOff.classList.remove('hidden');
+                } else {
+                    iconOn.classList.remove('hidden');
+                    iconOff.classList.add('hidden');
+                }
+            }
+        }
+
+        function copyPairingLink() {
+            if (!myID) return;
+            const url = new URL(window.location.href);
+            url.searchParams.set('pair', myID);
+            copyToClipboard(url.toString());
+            showToast("Magic Share Link copied to clipboard!", "emerald");
+        }
+
+        function checkUrlAutoPair() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const pairParam = urlParams.get('pair');
+            if (pairParam && pairParam.length === 6 && pairParam !== myID) {
+                showToast(`Auto-pairing via Share Link...`, "lime");
+                setTimeout(() => connectToPeer(pairParam), 500);
+            }
+        }
+
+        function regenerateDeviceCode() {
+            if (isConnected) disconnectPeer();
+            myID = Math.floor(100000 + Math.random() * 900000).toString();
+            localStorage.setItem('limeshare_my_id', myID);
+
+            if (peer && !peer.destroyed) {
+                try { peer.destroy(); } catch(e) {}
+                peer = null;
+            }
+
+            initPeer();
+            showToast(`New Code: #${myID}`, "lime");
+        }
+
+        function updateRadarStatus(text) {
+            const statusEl = document.getElementById('radar-status-text');
+            if (statusEl) statusEl.innerText = text;
+        }
+
+        function editMyName() {
+            const newName = prompt("Enter your display name:", myUserName);
+            if (newName && newName.trim()) {
+                myUserName = newName.trim();
+                localStorage.setItem('limeshare_user_name', myUserName);
+                const el = document.getElementById('my-name-display');
+                if (el) el.innerText = myUserName;
+                showToast(`Display name set to: ${myUserName}`, "emerald");
+                if (typeof sendPresencePing === 'function') sendPresencePing();
+            }
+        }
+
+        function initDB() {
+            return new Promise((resolve) => {
+                try {
+                    const req = indexedDB.open('LimeShareStorage', 2);
+                    req.onupgradeneeded = (e) => {
+                        const database = e.target.result;
+                        if (!database.objectStoreNames.contains('files')) {
+                            database.createObjectStore('files', { keyPath: 'id', autoIncrement: true });
+                        }
+                        if (!database.objectStoreNames.contains('snippets')) {
+                            database.createObjectStore('snippets', { keyPath: 'id', autoIncrement: true });
+                        }
+                        if (!database.objectStoreNames.contains('partials')) {
+                            database.createObjectStore('partials', { keyPath: 'fileId' });
+                        }
+                    };
+                    req.onsuccess = (e) => {
+                        db = e.target.result;
+                        loadHistoryFromDB();
+                        loadPartialsFromDB();
+                        resolve(db);
+                    };
+                    req.onerror = () => resolve(null);
+                } catch (err) {
+                    resolve(null);
+                }
+            });
+        }
+
+        function saveFileToDB(fileObj) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('files', 'readwrite');
+                tx.objectStore('files').add({
+                    name: fileObj.name,
+                    size: fileObj.size,
+                    mime: fileObj.mime,
+                    blob: fileObj.blob || null,
+                    isSent: fileObj.isSent || false,
+                    isDiskSaved: fileObj.isDiskSaved || false,
+                    timestamp: Date.now()
+                });
+            } catch(e) {}
+        }
+
+        function saveSnippetToDB(snippetObj) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('snippets', 'readwrite');
+                tx.objectStore('snippets').add(snippetObj);
+            } catch(e) {}
+        }
+
+        function loadHistoryFromDB() {
+            if (!db) return;
+            try {
+                const fileTx = db.transaction('files', 'readonly');
+                const fileReq = fileTx.objectStore('files').getAll();
+                fileReq.onsuccess = () => {
+                    fileHistory = (fileReq.result || []).map(f => ({
+                        name: f.name,
+                        size: f.size,
+                        mime: f.mime,
+                        url: f.blob ? URL.createObjectURL(f.blob) : null,
+                        isSent: f.isSent,
+                        isDiskSaved: f.isDiskSaved
+                    })).reverse();
+                    renderFileHistory();
+                };
+
+                const snippetTx = db.transaction('snippets', 'readonly');
+                const snippetReq = snippetTx.objectStore('snippets').getAll();
+                snippetReq.onsuccess = () => {
+                    snippetHistory = (snippetReq.result || []).reverse();
+                    snippetHistory.forEach(s => renderTextSnippet(s.text, s.isSent, false));
+                };
+            } catch(e) {}
+        }
+
+        function clearDBFiles() {
+            if (!db) return;
+            try {
+                const tx = db.transaction('files', 'readwrite');
+                tx.objectStore('files').clear();
+            } catch(e) {}
+        }
+
+        function savePartialToDB(fileId, meta, chunks, receivedSize) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readwrite');
+                tx.objectStore('partials').put({
+                    fileId: fileId,
+                    meta: meta,
+                    chunks: chunks,
+                    receivedSize: receivedSize,
+                    timestamp: Date.now()
+                });
+            } catch(e) {}
+        }
+
+        function removePartialFromDB(fileId) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readwrite');
+                tx.objectStore('partials').delete(fileId);
+            } catch(e) {}
+        }
+
+        function loadPartialsFromDB() {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readonly');
+                const req = tx.objectStore('partials').getAll();
+                req.onsuccess = () => {
+                    const list = req.result || [];
+                    list.forEach(item => {
+                        activePartialTransfers[item.fileId] = {
+                            meta: item.meta,
+                            chunks: item.chunks,
+                            receivedSize: item.receivedSize
+                        };
+                    });
+                };
+            } catch(e) {}
         }
     </script>
 </body>
