@@ -237,7 +237,6 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-lime-500 selection:text-white">
 
-    <!-- Top Header Bar -->
     <header class="w-full max-w-7xl mx-auto px-4 md:px-8 py-3.5 flex items-center justify-between z-30">
         <!-- Brand Logo -->
         <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.reload()">
@@ -348,13 +347,13 @@
         <div class="flex justify-between items-center text-xs font-bold">
             <span id="file-info-label" class="text-slate-800 dark:text-white truncate max-w-[170px]">Transferring File...</span>
             <div class="flex items-center gap-2">
-                <span id="chunk-size-badge" class="bg-lime-500/10 border border-lime-500/30 text-lime-600 dark:text-lime-400 text-[9px] px-1.5 py-0.5 rounded-md font-mono" title="Adaptive Dynamic Chunk Auto-Tuned">Auto 64KB</span>
+                <span id="chunk-size-badge" class="bg-lime-500/10 border border-lime-500/30 text-lime-600 dark:text-lime-400 text-[9px] px-1.5 py-0.5 rounded-md font-mono" title="High-Speed Optimized 64KB Packets">Turbo 64KB</span>
                 <span id="speed-label" class="text-lime-600 dark:text-lime-400 font-mono text-xs">0 MB/s</span>
             </div>
         </div>
         
         <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-300 dark:border-slate-700">
-            <div id="progress-bar" class="bg-gradient-to-r from-lime-500 to-emerald-500 h-full w-0 transition-all duration-100 rounded-full"></div>
+            <div id="progress-bar" class="bg-gradient-to-r from-lime-500 to-emerald-500 h-full w-0 transition-all duration-75 rounded-full"></div>
         </div>
 
         <div class="glass-panel p-1.5 rounded-xl border">
@@ -661,10 +660,10 @@
     </div>
 
     <script>
-        // High Speed Protocol Constants
-        const CHUNK_SIZE = 65536;       // 64KB WebRTC SCTP Standard Packet
-        const MAX_BUFFER = 1048576;     // 1MB Maximum Outgoing Pipe Threshold
-        const LOW_BUFFER = 262144;      // 256KB Buffer Drain Resumption Threshold
+        // High-Speed Universal WebRTC SCTP Protocol Constants
+        const CHUNK_SIZE = 65536;        // 64KB safe WebRTC packet boundary (cross-platform)
+        const MAX_BUFFER = 8 * 1024 * 1024; // 8MB high-throughput pipeline window
+        const LOW_BUFFER = 2 * 1024 * 1024; // 2MB drain resumption threshold
         const PEER_PREFIX = "ls-lan-v6-";
 
         let myID = null;
@@ -713,6 +712,10 @@
         let wakeLock = null;
         let deferredPrompt = null;
 
+        // Throttled high-performance UI sync state
+        let lastUiUpdate = 0;
+        let uiRafId = null;
+
         const MQTT_BROKERS = [
             'wss://broker.emqx.io:8084/mqtt',
             'wss://broker.hivemq.com:8884/mqtt',
@@ -754,14 +757,14 @@
             const badge = document.getElementById('chunk-size-badge');
             if (badge) {
                 const kb = Math.round(sizeInBytes / 1024);
-                badge.innerText = `Auto ${kb}KB`;
+                badge.innerText = `Turbo ${kb}KB`;
             }
         }
 
         function playChime(type) {
             if (isAudioMuted) return;
             const now = Date.now();
-            if (type === 'complete' && (now - lastChimeTime < 2000)) return;
+            if (type === 'complete' && (now - lastChimeTime < 1500)) return;
             if (type === 'complete') lastChimeTime = now;
 
             try {
@@ -862,9 +865,7 @@
                 });
 
                 peer.on('error', (err) => {
-                    if (isConnected && activeDataConn && activeDataConn.open) {
-                        return;
-                    }
+                    if (isConnected && activeDataConn && activeDataConn.open) return;
                     clearConnectionWatchdog();
                     if (err.type === 'peer-unavailable') {
                         showToast("Peer offline or code incorrect.", "rose");
@@ -1168,6 +1169,7 @@
         function setupDataConnection(conn, isInitiator) {
             activeDataConn = conn;
 
+            // Ensure binary type is arraybuffer across all browser implementations
             const dc = conn._dc || conn.dataChannel;
             if (dc) {
                 try { dc.binaryType = 'arraybuffer'; } catch(e) {}
@@ -1177,6 +1179,14 @@
             }
 
             conn.on('open', () => {
+                const innerDC = conn._dc || conn.dataChannel;
+                if (innerDC) {
+                    try { innerDC.binaryType = 'arraybuffer'; } catch(e) {}
+                    if ('bufferedAmountLowThreshold' in innerDC) {
+                        try { innerDC.bufferedAmountLowThreshold = LOW_BUFFER; } catch(e) {}
+                    }
+                }
+
                 if (isInitiator) {
                     try {
                         conn.send({
@@ -1212,7 +1222,10 @@
                 if (data instanceof ArrayBuffer) {
                     buffer = data;
                 } else if (data.buffer && data.buffer instanceof ArrayBuffer) {
-                    buffer = data.buffer;
+                    // Fast view slice handling
+                    buffer = (data.byteOffset === 0 && data.byteLength === data.buffer.byteLength)
+                        ? data.buffer
+                        : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
                 } else if (data instanceof Blob) {
                     buffer = await data.arrayBuffer();
                 }
@@ -1432,10 +1445,16 @@
                 receivedChunks.push(chunkBuffer);
             }
             receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
-            updateProgressUI(receivedSize, incomingMeta.size);
+            
+            // High efficiency non-blocking UI update
+            scheduleThrottledUiUpdate(receivedSize, incomingMeta.size);
+        }
 
-            if (incomingMeta.fileId && receivedSize % (10 * 1024 * 1024) < CHUNK_SIZE) {
-                savePartialToDB(incomingMeta.fileId, incomingMeta, [...receivedChunks], receivedSize);
+        function scheduleThrottledUiUpdate(current, total) {
+            const now = performance.now();
+            if (now - lastUiUpdate > 80) { // Limit DOM/Canvas churn to ~12 FPS
+                lastUiUpdate = now;
+                updateProgressUI(current, total);
             }
         }
 
@@ -1443,6 +1462,11 @@
             playChime('complete');
             releaseWakeLock();
             
+            // Final guaranteed UI update to 100%
+            if (incomingMeta) {
+                updateProgressUI(incomingMeta.size, incomingMeta.size);
+            }
+
             if (incomingMeta && incomingMeta.fileId) {
                 delete activePartialTransfers[incomingMeta.fileId];
                 removePartialFromDB(incomingMeta.fileId);
@@ -1576,31 +1600,33 @@
 
                 const currentBuffer = rawDC ? rawDC.bufferedAmount : 0;
 
-                // High-Speed Adaptive Flow-Control Drain Wait
+                // High-Speed Adaptive Flow-Control Window (up to 8MB pipe)
                 if (currentBuffer > MAX_BUFFER) {
                     await new Promise(resolve => {
                         let done = false;
+                        const drainHandler = () => {
+                            if (!done && (!rawDC || rawDC.bufferedAmount <= LOW_BUFFER)) {
+                                done = true;
+                                if (rawDC) rawDC.removeEventListener('bufferedamountlow', drainHandler);
+                                resolve();
+                            }
+                        };
+
+                        if (rawDC) {
+                            rawDC.addEventListener('bufferedamountlow', drainHandler);
+                        }
+
+                        // Resilient fallback check
                         const timer = setInterval(() => {
                             if (!rawDC || rawDC.bufferedAmount <= LOW_BUFFER) {
                                 if (!done) {
                                     done = true;
                                     clearInterval(timer);
-                                    if (rawDC) rawDC.onbufferedamountlow = null;
+                                    if (rawDC) rawDC.removeEventListener('bufferedamountlow', drainHandler);
                                     resolve();
                                 }
                             }
                         }, 10);
-
-                        if (rawDC) {
-                            rawDC.onbufferedamountlow = () => {
-                                if (!done) {
-                                    done = true;
-                                    clearInterval(timer);
-                                    rawDC.onbufferedamountlow = null;
-                                    resolve();
-                                }
-                            };
-                        }
                     });
                 }
 
@@ -1615,7 +1641,7 @@
                     }
 
                     offset += chunkData.byteLength;
-                    updateProgressUI(offset, file.size);
+                    scheduleThrottledUiUpdate(offset, file.size);
                 } catch(err) {
                     showToast("Transfer interrupted.", "rose");
                     preservePartialState();
@@ -1624,6 +1650,9 @@
                     return;
                 }
             }
+
+            // Ensure final 100% update
+            updateProgressUI(file.size, file.size);
 
             try {
                 activeDataConn.send({ type: 'end' });
@@ -1648,7 +1677,7 @@
             currentTransferFile = null;
             lastAttemptedFile = null;
             resetFileInputs();
-            setTimeout(processNextFileInQueue, 100);
+            setTimeout(processNextFileInQueue, 50);
         }
 
         function abortTransfer() {
@@ -1660,7 +1689,7 @@
         }
 
         let speedHistory = new Array(30).fill(0);
-        let lastTime = Date.now();
+        let lastTime = performance.now();
         let lastBytes = 0;
 
         function drawSpeedChart() {
@@ -1699,20 +1728,22 @@
         function showProgressUI(label) {
             document.getElementById('progress-card').classList.remove('hidden');
             document.getElementById('file-info-label').innerText = label;
-            lastTime = Date.now();
+            lastTime = performance.now();
             lastBytes = 0;
+            lastUiUpdate = 0;
             speedHistory.fill(0);
         }
 
         function updateProgressUI(current, total) {
-            const now = Date.now();
+            const now = performance.now();
             const timeDiff = (now - lastTime) / 1000;
 
-            if (timeDiff >= 0.15) {
-                const bytesDiff = current - lastBytes;
+            if (timeDiff >= 0.1) {
+                const bytesDiff = Math.max(0, current - lastBytes);
                 const speedBytesPerSec = bytesDiff / timeDiff;
                 
-                document.getElementById('speed-label').innerText = formatSpeed(speedBytesPerSec);
+                const speedEl = document.getElementById('speed-label');
+                if (speedEl) speedEl.innerText = formatSpeed(speedBytesPerSec);
                 
                 speedHistory.push(speedBytesPerSec);
                 speedHistory.shift();
@@ -1723,9 +1754,13 @@
             }
 
             const percent = Math.min(100, Math.round((current / Math.max(total, 1)) * 100));
-            document.getElementById('progress-bar').style.width = percent + '%';
-            document.getElementById('percent-label').innerText = percent + '%';
-            document.getElementById('transferred-bytes').innerText = `${formatBytes(current)} / ${formatBytes(total)}`;
+            const progressBar = document.getElementById('progress-bar');
+            const percentLabel = document.getElementById('percent-label');
+            const bytesLabel = document.getElementById('transferred-bytes');
+
+            if (progressBar) progressBar.style.width = percent + '%';
+            if (percentLabel) percentLabel.innerText = percent + '%';
+            if (bytesLabel) bytesLabel.innerText = `${formatBytes(current)} / ${formatBytes(total)}`;
         }
 
         function hideProgressUI() {
