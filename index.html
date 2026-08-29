@@ -662,11 +662,11 @@
 
     <script>
         // High Speed Protocol Constants
-        const MIN_CHUNK_SIZE = 32768;   // 32KB Minimum
-        const MAX_CHUNK_SIZE = 524288;  // 512KB Maximum
-        const DEFAULT_CHUNK_SIZE = 131072; // 128KB Starting chunk
-        const MAX_BUFFER = 4 * 1024 * 1024; // 4MB Backpressure limit
-        const LOW_BUFFER = 1 * 1024 * 1024; // 1MB Drain threshold
+        const MIN_CHUNK_SIZE = 16384;   // 16KB Minimum for congested channels
+        const MAX_CHUNK_SIZE = 65536;   // 64KB Safe WebRTC SCTP Message Limit
+        const DEFAULT_CHUNK_SIZE = 32768; // 32KB Reliable universal chunk
+        const MAX_BUFFER = 2 * 1024 * 1024; // 2MB Backpressure limit
+        const LOW_BUFFER = 512 * 1024;  // 512KB Drain threshold
         const PEER_PREFIX = "ls-lan-v6-";
 
         // Global Application State Variables
@@ -1134,11 +1134,13 @@
 
             conn.on('open', () => {
                 if (isInitiator) {
-                    conn.send({
-                        type: 'pair_handshake_req',
-                        senderID: myID,
-                        userName: myUserName
-                    });
+                    try {
+                        conn.send({
+                            type: 'pair_handshake_req',
+                            senderID: myID,
+                            userName: myUserName
+                        });
+                    } catch(e) {}
                 }
             });
 
@@ -1147,7 +1149,6 @@
             });
 
             conn.on('close', () => {
-                // If data channel itself closes, gracefully preserve partial progress
                 preservePartialState();
                 disconnectPeer(false);
             });
@@ -1162,9 +1163,17 @@
             if (!data) return;
 
             if (data.type === 'pair_handshake_req') {
-                pendingPeerRequest = { senderID: data.senderID, userName: data.userName, conn };
-                document.getElementById('pair-request-peer-id').innerText = `${data.userName || 'Device'} (#${data.senderID})`;
-                document.getElementById('pair-request-modal').classList.remove('hidden');
+                const securityShieldActive = localStorage.getItem('limeshare_require_approval') !== 'false';
+                if (securityShieldActive) {
+                    pendingPeerRequest = { senderID: data.senderID, userName: data.userName, conn };
+                    document.getElementById('pair-request-peer-id').innerText = `${data.userName || 'Device'} (#${data.senderID})`;
+                    document.getElementById('pair-request-modal').classList.remove('hidden');
+                } else {
+                    try {
+                        conn.send({ type: 'pair_handshake_ack', senderID: myID, userName: myUserName });
+                    } catch(e) {}
+                    finalizeConnection(data.senderID, data.userName);
+                }
             }
             else if (data.type === 'pair_handshake_ack') {
                 finalizeConnection(data.senderID, data.userName);
@@ -1500,10 +1509,10 @@
             updateProgressUI(resumeOffset, file.size);
 
             let offset = resumeOffset;
-            const dataChannel = activeDataConn ? (activeDataConn.dataChannel || activeDataConn) : null;
+            const dataChannel = activeDataConn ? (activeDataConn._dc || activeDataConn.dataChannel || activeDataConn) : null;
 
             if (dataChannel && 'bufferedAmountLowThreshold' in dataChannel) {
-                dataChannel.bufferedAmountLowThreshold = LOW_BUFFER;
+                try { dataChannel.bufferedAmountLowThreshold = LOW_BUFFER; } catch(e) {}
             }
 
             currentChunkSize = DEFAULT_CHUNK_SIZE;
@@ -1520,8 +1529,8 @@
                     return;
                 }
 
-                // Adaptive Backpressure Auto-Tuning
-                if (dataChannel && dataChannel.bufferedAmount > MAX_BUFFER) {
+                // Adaptive Backpressure Auto-Tuning with fallback timeout
+                if (dataChannel && typeof dataChannel.bufferedAmount === 'number' && dataChannel.bufferedAmount > MAX_BUFFER) {
                     consecutiveBackpressures++;
                     consecutiveFastDrains = 0;
 
@@ -1532,9 +1541,25 @@
                     }
 
                     await new Promise(resolve => {
+                        let resolved = false;
+                        const checkInterval = setInterval(() => {
+                            if (!dataChannel || dataChannel.bufferedAmount <= LOW_BUFFER) {
+                                if (!resolved) {
+                                    resolved = true;
+                                    clearInterval(checkInterval);
+                                    if (dataChannel) dataChannel.onbufferedamountlow = null;
+                                    resolve();
+                                }
+                            }
+                        }, 40);
+
                         dataChannel.onbufferedamountlow = () => {
-                            dataChannel.onbufferedamountlow = null;
-                            resolve();
+                            if (!resolved) {
+                                resolved = true;
+                                clearInterval(checkInterval);
+                                dataChannel.onbufferedamountlow = null;
+                                resolve();
+                            }
                         };
                     });
                 } else {
