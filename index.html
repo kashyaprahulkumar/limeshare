@@ -348,7 +348,7 @@
         <div class="flex justify-between items-center text-xs font-bold">
             <span id="file-info-label" class="text-slate-800 dark:text-white truncate max-w-[170px]">Transferring File...</span>
             <div class="flex items-center gap-2">
-                <span id="chunk-size-badge" class="bg-lime-500/10 border border-lime-500/30 text-lime-600 dark:text-lime-400 text-[9px] px-1.5 py-0.5 rounded-md font-mono" title="Adaptive Dynamic Chunk Auto-Tuned">Auto 128KB</span>
+                <span id="chunk-size-badge" class="bg-lime-500/10 border border-lime-500/30 text-lime-600 dark:text-lime-400 text-[9px] px-1.5 py-0.5 rounded-md font-mono" title="Adaptive Dynamic Chunk Auto-Tuned">Auto 64KB</span>
                 <span id="speed-label" class="text-lime-600 dark:text-lime-400 font-mono text-xs">0 MB/s</span>
             </div>
         </div>
@@ -662,15 +662,10 @@
 
     <script>
         // High Speed Protocol Constants
-        const CHUNK_SIZE = 65536;       // 64KB WebRTC SCTP Maximum Single Message
+        const CHUNK_SIZE = 65536;       // 64KB WebRTC SCTP Standard Packet
         const MAX_BUFFER = 1048576;     // 1MB Maximum Outgoing Pipe Threshold
         const LOW_BUFFER = 262144;      // 256KB Buffer Drain Resumption Threshold
         const PEER_PREFIX = "ls-lan-v6-";
-
-        // Global Application State Variables
-        let currentChunkSize = CHUNK_SIZE;
-        let consecutiveFastDrains = 0;
-        let consecutiveBackpressures = 0;
 
         let myID = null;
         let myUserName = localStorage.getItem('limeshare_user_name');
@@ -718,7 +713,6 @@
         let wakeLock = null;
         let deferredPrompt = null;
 
-        // Fallback discovery brokers for initial signaling exchange
         const MQTT_BROKERS = [
             'wss://broker.emqx.io:8084/mqtt',
             'wss://broker.hivemq.com:8884/mqtt',
@@ -756,7 +750,57 @@
             }
         }
 
-        /* --- STREAMING_CHUNK:Configuring WebRTC and Direct LAN DataChannel --- */
+        function updateChunkBadge(sizeInBytes) {
+            const badge = document.getElementById('chunk-size-badge');
+            if (badge) {
+                const kb = Math.round(sizeInBytes / 1024);
+                badge.innerText = `Auto ${kb}KB`;
+            }
+        }
+
+        function playChime(type) {
+            if (isAudioMuted) return;
+            const now = Date.now();
+            if (type === 'complete' && (now - lastChimeTime < 2000)) return;
+            if (type === 'complete') lastChimeTime = now;
+
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                const t = ctx.currentTime;
+                if (type === 'connect') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, t);
+                    osc.frequency.exponentialRampToValueAtTime(659.25, t + 0.12);
+                    gain.gain.setValueAtTime(0.06, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+                    osc.start(t);
+                    osc.stop(t + 0.25);
+                } else if (type === 'complete') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, t);
+                    osc.frequency.setValueAtTime(880.00, t + 0.08);
+                    gain.gain.setValueAtTime(0.05, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                    osc.start(t);
+                    osc.stop(t + 0.3);
+                } else if (type === 'text') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, t);
+                    gain.gain.setValueAtTime(0.04, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+                    osc.start(t);
+                    osc.stop(t + 0.12);
+                }
+            } catch(e) {}
+        }
+
         function initPeer() {
             myID = localStorage.getItem('limeshare_my_id');
             if (!myID || myID.length !== 6) {
@@ -783,7 +827,6 @@
             setupPresenceBeacon();
 
             try {
-                // Configure STUN for initial signaling, with ICE candidates configured to bind directly to local LAN host pairs
                 peer = new Peer(PEER_PREFIX + myID, {
                     debug: 1,
                     config: {
@@ -803,8 +846,6 @@
                     checkUrlAutoPair();
                 });
 
-                // CRITICAL FIX: If PeerJS cloud signaling drops (e.g. internet down on hotspot),
-                // DO NOT abort active P2P transfers! Active RTCDataChannel runs 100% on local Wi-Fi.
                 peer.on('disconnected', () => {
                     if (isConnected && activeDataConn && activeDataConn.open) {
                         updateRadarStatus("Direct LAN (Internet Offline)");
@@ -821,7 +862,6 @@
                 });
 
                 peer.on('error', (err) => {
-                    // Ignore signaling errors if we already have an active direct data channel
                     if (isConnected && activeDataConn && activeDataConn.open) {
                         return;
                     }
@@ -842,7 +882,6 @@
             }
         }
 
-        /* --- STREAMING_CHUNK:Configuring local discovery beacon --- */
         function setupPresenceBeacon() {
             const topicRoom = `limeshare_lan_mesh_v6`;
 
@@ -1051,7 +1090,6 @@
             lucide.createIcons();
         }
 
-        /* --- STREAMING_CHUNK:Managing direct P2P connections and handshakes --- */
         function connectToPeer(overrideID) {
             const input = document.getElementById('peer-id-input');
             const rawInput = (overrideID || (input ? input.value : '')).trim();
@@ -1130,7 +1168,6 @@
         function setupDataConnection(conn, isInitiator) {
             activeDataConn = conn;
 
-            // Ensure underlying data channel is configured for fast raw binary
             const dc = conn._dc || conn.dataChannel;
             if (dc) {
                 try { dc.binaryType = 'arraybuffer'; } catch(e) {}
@@ -1166,7 +1203,6 @@
             });
         }
 
-        /* --- STREAMING_CHUNK:Processing incoming control messages and binary stream data --- */
         async function handleIncomingData(data, conn) {
             if (!data) return;
 
@@ -1208,7 +1244,7 @@
                 try { conn.send({ type: 'direct_lan_pong' }); } catch(e) {}
             }
             else if (data.type === 'direct_lan_pong') {
-                // Direct local LAN socket is verified healthy
+                // Direct LAN socket verified
             }
             else if (data.type === 'disconnect') {
                 showToast("Remote peer ended the session", "rose");
@@ -1269,7 +1305,6 @@
             renderRadarPeers();
             showToast(`Directly Paired with #${peerID}!`, "emerald");
 
-            // Local DataChannel direct heartbeat (strictly across local Wi-Fi, never touching internet)
             startDirectLanHeartbeat();
 
             if (pendingFileQueue.length > 0 && !isTransferring) {
@@ -1340,7 +1375,6 @@
             abortConnectionAttempt();
         }
 
-        /* --- STREAMING_CHUNK:Implementing high-throughput chunk streaming engine --- */
         async function handleFileOffer(data) {
             const fileId = `${data.name}_${data.size}`;
             incomingMeta = { ...data, fileId };
@@ -1364,7 +1398,6 @@
                 }
                 receivedChunks = [];
                 receivedSize = 0;
-                // Auto-accept offer immediately for zero-stutter automatic high-speed transfer
                 if (activeDataConn && activeDataConn.open) {
                     activeDataConn.send({ type: 'accept', resumeOffset: 0 });
                 }
@@ -1517,7 +1550,6 @@
             }
         }
 
-        /* --- STREAMING_CHUNK:Pumping auto-speed binary chunk pipeline --- */
         async function startStreamingChunks(file, resumeOffset = 0) {
             await requestWakeLock();
             showProgressUI(`${resumeOffset > 0 ? 'Resuming' : 'Sending'}: ${file.name}`);
@@ -1535,7 +1567,6 @@
             updateChunkBadge(CHUNK_SIZE);
 
             while (offset < file.size) {
-                // Ensure peer connection is still active
                 if (!isConnected || !activeDataConn || !activeDataConn.open) {
                     preservePartialState();
                     abortTransfer();
@@ -1577,7 +1608,6 @@
                 try {
                     const chunkData = await slice.arrayBuffer();
 
-                    // Send raw zero-copy binary directly across native WebRTC data channel
                     if (rawDC && rawDC.readyState === 'open') {
                         rawDC.send(chunkData);
                     } else {
@@ -1595,7 +1625,6 @@
                 }
             }
 
-            // Signal end of file transfer
             try {
                 activeDataConn.send({ type: 'end' });
             } catch(err) {}
@@ -1630,7 +1659,6 @@
             hideProgressUI();
         }
 
-        /* --- STREAMING_CHUNK:Configuring UI helpers and speed visualizer --- */
         let speedHistory = new Array(30).fill(0);
         let lastTime = Date.now();
         let lastBytes = 0;
@@ -1694,7 +1722,7 @@
                 lastBytes = current;
             }
 
-            const percent = Math.min(100, Math.round((current / total) * 100));
+            const percent = Math.min(100, Math.round((current / Math.max(total, 1)) * 100));
             document.getElementById('progress-bar').style.width = percent + '%';
             document.getElementById('percent-label').innerText = percent + '%';
             document.getElementById('transferred-bytes').innerText = `${formatBytes(current)} / ${formatBytes(total)}`;
@@ -1932,7 +1960,6 @@
             updateBatchUI();
         }
 
-        /* --- STREAMING_CHUNK:Handling Live Clipboard, Voice Talk, and UI Tabs --- */
         function setupDragAndDrop() {
             const circle = document.getElementById('upload-circle');
             const fileInput = document.getElementById('file-input');
@@ -2306,7 +2333,6 @@
             }, 3500);
         }
 
-        /* --- STREAMING_CHUNK:PWA manifest injection and installation logic --- */
         function initPwaSupport() {
             const manifestData = {
                 name: "LimeShare Local P2P",
