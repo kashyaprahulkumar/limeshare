@@ -1,0 +1,2535 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="lime">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LimeShare • Local Wi-Fi Direct Peer Drop</title>
+    
+    <!-- SEO & Metadata -->
+    <meta name="description" content="LimeShare is a fast, secure local Wi-Fi peer-to-peer file sharing and clipboard tool. Direct device-to-device transfer with zero cloud storage.">
+    <meta name="keywords" content="local wifi file share, P2P file transfer, airdrop alternative, wifi drop, direct device transfer, local network share">
+    <meta name="author" content="LimeShare">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#84cc16">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="LimeShare • Local Wi-Fi Peer Drop">
+    <meta property="og:description" content="Fast, private device-to-device local Wi-Fi file sharing and clipboard sync. Zero cloud storage.">
+    <meta property="og:image" content="https://placehold.co/1200x630/84cc16/ffffff?text=LimeShare+Local+WiFi">
+
+    <!-- Web App Manifest for PWA Support -->
+    <link rel="manifest" id="pwa-manifest-link">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root[data-theme="lime"] {
+            --bg-main: #fcfdfc;
+            --radar-line: rgba(34, 197, 94, 0.12);
+            --radar-glow: rgba(132, 204, 22, 0.2);
+            --accent-primary: #84cc16;
+            --accent-secondary: #22c55e;
+            --accent-dark: #15803d;
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --card-border: rgba(226, 232, 240, 0.85);
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --node-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.25);
+        }
+
+        :root[data-theme="dark-radar"] {
+            --bg-main: #080c0a;
+            --radar-line: rgba(34, 197, 94, 0.15);
+            --radar-glow: rgba(132, 204, 22, 0.25);
+            --accent-primary: #a3e635;
+            --accent-secondary: #4ade80;
+            --accent-dark: #16a34a;
+            --card-bg: rgba(15, 23, 18, 0.9);
+            --card-border: rgba(34, 197, 94, 0.22);
+            --text-main: #f0fdf4;
+            --text-sub: #86efac;
+            --node-shadow: 0 10px 30px -5px rgba(74, 222, 128, 0.3);
+        }
+
+        :root[data-theme="cyber"] {
+            --bg-main: #030712;
+            --radar-line: rgba(56, 189, 248, 0.15);
+            --radar-glow: rgba(56, 189, 248, 0.3);
+            --accent-primary: #38bdf8;
+            --accent-secondary: #818cf8;
+            --accent-dark: #0284c7;
+            --card-bg: rgba(15, 23, 42, 0.92);
+            --card-border: rgba(56, 189, 248, 0.25);
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --node-shadow: 0 10px 30px -5px rgba(56, 189, 248, 0.3);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            overflow-x: hidden;
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Radar Visualizer Container */
+        .radar-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            height: 480px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+        .radar-circle {
+            position: absolute;
+            border-radius: 50%;
+            border: 1px solid var(--radar-line);
+            pointer-events: none;
+            transition: all 0.5s ease;
+        }
+
+        .radar-circle-1 { width: 200px; height: 200px; }
+        .radar-circle-2 { width: 340px; height: 340px; }
+        .radar-circle-3 { width: 480px; height: 480px; }
+        .radar-circle-4 { width: 640px; height: 640px; }
+
+        @media (max-width: 767px) {
+            .radar-container {
+                height: 350px;
+                width: 100%;
+                max-width: 100vw;
+            }
+            .radar-circle-1 { width: 130px; height: 130px; }
+            .radar-circle-2 { width: 210px; height: 210px; }
+            .radar-circle-3 { width: 280px; height: 280px; }
+            .radar-circle-4 { width: 340px; height: 340px; max-width: 90vw; max-height: 90vw; }
+            .radar-pulse { width: 240px; height: 240px; max-width: 78vw; max-height: 78vw; }
+            .upload-circle-btn { width: 130px; height: 130px; }
+            .upload-circle-btn h2 { font-size: 0.85rem; }
+        }
+
+        @keyframes radarSweep {
+            0% { transform: scale(0.3); opacity: 0.8; }
+            50% { opacity: 0.4; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+
+        .radar-pulse {
+            position: absolute;
+            width: 380px;
+            height: 380px;
+            border-radius: 50%;
+            border: 1.5px solid var(--accent-primary);
+            animation: radarSweep 4s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+            pointer-events: none;
+        }
+
+        .radar-pulse:nth-child(2) {
+            animation-delay: -2s;
+        }
+
+        /* Upload Button */
+        .upload-circle-btn {
+            position: relative;
+            width: 165px;
+            height: 165px;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08), 0 0 0 8px rgba(132, 204, 22, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 20;
+        }
+
+        [data-theme="dark-radar"] .upload-circle-btn,
+        [data-theme="cyber"] .upload-circle-btn {
+            background: #111827;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5), 0 0 0 8px rgba(132, 204, 22, 0.2);
+        }
+
+        .upload-circle-ring {
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            padding: 4px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary), #16a34a);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            transition: transform 0.4s ease;
+        }
+
+        .upload-circle-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 25px 50px -12px var(--node-shadow), 0 0 0 12px rgba(132, 204, 22, 0.25);
+        }
+
+        .glass-panel {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        .theme-accent-btn {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: #ffffff;
+            font-weight: 700;
+            box-shadow: 0 4px 14px var(--radar-glow);
+        }
+
+        .theme-accent-btn:hover {
+            filter: brightness(1.08);
+            transform: translateY(-1px);
+        }
+
+        .drag-over-active {
+            transform: scale(1.12) !important;
+            box-shadow: 0 0 0 16px rgba(132, 204, 22, 0.35) !important;
+        }
+
+        @keyframes connectingRing {
+            0% { transform: scale(0.9); opacity: 0.9; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        .connecting-pulse {
+            animation: connectingRing 1.4s ease-out infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-lime-500 selection:text-white">
+
+    <header class="w-full max-w-7xl mx-auto px-3 sm:px-6 py-3.5 flex items-center justify-between z-30">
+        <!-- Logo & Network Scope -->
+        <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.reload()">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-lime-400 to-green-600 flex items-center justify-center text-white shadow-lg shadow-lime-500/30">
+                <i data-lucide="wifi" class="w-5 h-5 text-white"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-extrabold text-lime-600 bg-lime-500/10 px-1.5 py-0.5 rounded border border-lime-500/30 uppercase tracking-wider">Wi-Fi Direct</span>
+                    <h1 class="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">LimeShare</h1>
+                </div>
+                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Local Network Peer Drop</p>
+            </div>
+        </div>
+
+        <!-- Header Controls -->
+        <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+            <!-- 6-Digit Device Code Button -->
+            <button id="connect-device-btn" onclick="openPairingModal()" class="glass-panel px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-1.5 hover:border-lime-500 transition shadow-sm" title="Connect Device via 6-Digit Code / QR">
+                <span id="conn-status-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                <span id="my-code-display" class="font-mono text-lime-600 dark:text-lime-400 font-extrabold">------</span>
+                <i data-lucide="qr-code" class="w-3.5 h-3.5 text-slate-400"></i>
+            </button>
+
+            <!-- PWA Install Button -->
+            <button id="pwa-install-btn" onclick="triggerPwaInstall()" class="hidden glass-panel px-2.5 py-1.5 rounded-full border text-xs font-bold flex items-center gap-1.5 text-lime-600 dark:text-lime-400 hover:border-lime-500 transition shadow-sm" title="Install App to Device">
+                <i data-lucide="download-cloud" class="w-3.5 h-3.5 text-lime-500"></i>
+                <span class="hidden md:inline">Install</span>
+            </button>
+
+            <!-- Guide Modal Button -->
+            <button onclick="openGuideModal()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="How it Works">
+                <i data-lucide="help-circle" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Audio Mute Toggle -->
+            <button id="audio-toggle-btn" onclick="toggleAudioMute()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Toggle Sound">
+                <i id="audio-icon-on" data-lucide="volume-2" class="w-4 h-4 text-emerald-500"></i>
+                <i id="audio-icon-off" data-lucide="volume-x" class="w-4 h-4 text-rose-500 hidden"></i>
+            </button>
+
+            <!-- Symbolic Theme Toggle Button -->
+            <button id="theme-toggle-btn" onclick="cycleTheme()" class="glass-panel p-2 rounded-full border text-slate-700 dark:text-slate-200 hover:text-lime-600 transition active:scale-95 flex items-center justify-center" title="Toggle Theme (Lime / Dark / Cyber)">
+                <i id="theme-icon" data-lucide="sun" class="w-4 h-4 text-lime-500"></i>
+            </button>
+
+            <!-- 1-Click Magic Wi-Fi Link Button -->
+            <button onclick="copyPairingLink()" class="theme-accent-btn px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow">
+                <i data-lucide="link" class="w-3.5 h-3.5"></i>
+                <span class="hidden sm:inline">Magic Link</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col items-center justify-center relative px-2 sm:px-4 py-2 my-auto w-full overflow-hidden">
+        
+        <!-- Local Wi-Fi Radar Mesh View -->
+        <div class="w-full flex flex-col items-center justify-center">
+            <div class="radar-container">
+                <div class="radar-pulse"></div>
+                <div class="radar-pulse"></div>
+
+                <div class="radar-circle radar-circle-1"></div>
+                <div class="radar-circle radar-circle-2"></div>
+                <div class="radar-circle radar-circle-3"></div>
+                <div class="radar-circle radar-circle-4"></div>
+
+                <!-- Central Upload Hub -->
+                <div class="relative flex flex-col items-center justify-center z-20">
+                    <div id="upload-circle" class="upload-circle-btn group" onclick="triggerFileUpload()">
+                        <div class="upload-circle-ring"></div>
+                        <input type="file" id="file-input" multiple class="hidden">
+                        
+                        <h2 class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight group-hover:text-lime-600 transition">Upload Files</h2>
+                        <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Click or Drop</p>
+                    </div>
+
+                    <!-- Upload Folder Button -->
+                    <div class="mt-4">
+                        <label onclick="handleFolderClick(event)" class="glass-panel hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold px-4 py-1.5 rounded-full border shadow-md flex items-center gap-2 cursor-pointer transition active:scale-95">
+                            <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden" onchange="handleFolderSelect(event)">
+                            <i data-lucide="folder" class="w-3.5 h-3.5 text-lime-600"></i>
+                            <span>Upload Folder</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-lime-600"></i>
+                        </label>
+                    </div>
+
+                    <!-- User Node -->
+                    <div class="mt-3 flex flex-col items-center">
+                        <div id="my-avatar-ring" class="w-11 h-11 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow-lg text-slate-800 dark:text-white transition-all">
+                            <i data-lucide="radio" class="w-5 h-5 text-lime-500 animate-pulse"></i>
+                        </div>
+                        <div class="flex items-center gap-1 mt-1 cursor-pointer hover:text-lime-500 transition" onclick="editMyName()" title="Click to edit display name">
+                            <p id="my-name-display" class="text-xs font-extrabold text-slate-800 dark:text-white">You</p>
+                            <i data-lucide="edit-3" class="w-3 h-3 text-slate-400"></i>
+                        </div>
+                        <p id="radar-status-text" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Wi-Fi Ready</p>
+                    </div>
+                </div>
+
+                <!-- Discovered Peers Layer -->
+                <div id="radar-peers-layer" class="absolute inset-0 pointer-events-none z-30"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Active Transfer Progress Card Overlay -->
+    <div id="progress-card" class="fixed bottom-24 left-1/2 -translate-x-1/2 max-w-md w-[92%] glass-panel p-4 rounded-2xl border shadow-2xl z-40 hidden space-y-2.5">
+        <div class="flex justify-between items-center text-xs font-bold">
+            <span id="file-info-label" class="text-slate-800 dark:text-white truncate max-w-[170px]">Transferring File...</span>
+            <div class="flex items-center gap-2">
+                <span id="chunk-size-badge" class="bg-lime-500/10 border border-lime-500/30 text-lime-600 dark:text-lime-400 text-[9px] px-1.5 py-0.5 rounded-md font-mono">Auto 128KB</span>
+                <span id="speed-label" class="text-lime-600 dark:text-lime-400 font-mono text-xs">0 MB/s</span>
+            </div>
+        </div>
+        
+        <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-300 dark:border-slate-700">
+            <div id="progress-bar" class="bg-gradient-to-r from-lime-500 to-emerald-500 h-full w-0 transition-all duration-100 rounded-full"></div>
+        </div>
+
+        <div class="glass-panel p-1.5 rounded-xl border">
+            <canvas id="speed-chart" width="360" height="32" class="w-full h-8 block"></canvas>
+        </div>
+
+        <div class="flex justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono">
+            <span id="transferred-bytes">0 MB / 0 MB</span>
+            <span id="percent-label">0%</span>
+        </div>
+    </div>
+
+    <!-- Direct-to-Disk Stream Prompt Overlay -->
+    <div id="disk-prompt-card" class="fixed bottom-24 left-1/2 -translate-x-1/2 max-w-md w-[92%] bg-lime-950/90 border border-lime-500/40 p-4 rounded-2xl space-y-3 z-40 hidden shadow-2xl backdrop-blur-md text-white">
+        <div class="flex items-start gap-3">
+            <div class="p-2 bg-lime-500/20 rounded-xl text-lime-400">
+                <i data-lucide="hard-drive" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h3 class="text-xs font-extrabold text-lime-300">Large File Stream Detected</h3>
+                <p id="disk-prompt-file-info" class="text-xs font-mono text-slate-200 mt-0.5">file.zip (1.2 GB)</p>
+                <p class="text-[10px] text-slate-300 mt-1">Select a folder on disk to write data directly without consuming device RAM.</p>
+            </div>
+        </div>
+        <button onclick="acceptDiskTransfer()" class="w-full bg-lime-500 hover:bg-lime-400 text-slate-950 font-extrabold py-2 rounded-xl text-xs transition shadow">
+            Choose Save Location & Receive
+        </button>
+    </div>
+
+    <!-- Bottom Dock Control Bar -->
+    <footer class="w-full max-w-lg mx-auto px-4 pb-4 z-30">
+        <div class="glass-panel p-1.5 rounded-2xl border shadow-xl flex items-center justify-between text-xs font-bold gap-1">
+            <button id="dock-btn-main" onclick="switchDockTab('main')" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-lime-500 to-green-600 text-white shadow flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="radar" class="w-4 h-4"></i>
+                <span>Radar Mesh</span>
+            </button>
+            <button id="dock-btn-history" onclick="switchDockTab('history')" class="flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="folder-down" class="w-4 h-4"></i>
+                <span>Files & History</span>
+                <span id="history-badge-count" class="bg-lime-500 text-white text-[9px] px-1.5 py-0.5 rounded-full hidden">0</span>
+            </button>
+            <button id="dock-btn-clip" onclick="switchDockTab('clip')" class="flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="clipboard" class="w-4 h-4"></i>
+                <span>Live Clipboard</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Drawer Modal 1: Files & Transfer History -->
+    <div id="drawer-history" class="fixed inset-0 bg-black/60 backdrop-blur-md hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="glass-panel max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] flex flex-col shadow-2xl border">
+            <div class="flex justify-between items-center border-b pb-3 border-slate-200 dark:border-slate-800">
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="select-all-files" onchange="toggleSelectAll(this.checked)" class="rounded w-4 h-4 accent-lime-500 cursor-pointer hidden">
+                    <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">Transfer History</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="batch-zip-btn" onclick="downloadSelectedAsZip()" class="hidden bg-lime-600 hover:bg-lime-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition shadow flex items-center gap-1">
+                        <i data-lucide="archive" class="w-3 h-3"></i>
+                        <span>ZIP</span>
+                        <span id="selected-count-zip" class="bg-lime-700 px-1 rounded-full text-[8px]">0</span>
+                    </button>
+                    <button id="batch-download-btn" onclick="downloadSelectedFiles()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition shadow flex items-center gap-1">
+                        <i data-lucide="download" class="w-3 h-3"></i>
+                        <span id="selected-count-dl" class="bg-emerald-700 px-1 rounded-full text-[8px]">0</span>
+                    </button>
+                    <button id="batch-delete-btn" onclick="deleteSelectedFiles()" class="hidden bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition shadow flex items-center gap-1">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                    </button>
+                    <button onclick="clearFileHistory()" class="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">Clear</button>
+                    <button onclick="closeDrawers()" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="file-list" class="space-y-2 overflow-y-auto pr-1 flex-1 min-h-[220px]">
+                <p id="empty-state" class="text-center text-xs text-slate-400 py-8 font-medium">No files sent or received yet</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawer Modal 2: Live Clipboard & Voice Note -->
+    <div id="drawer-clip" class="fixed inset-0 bg-black/60 backdrop-blur-md hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="glass-panel max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] flex flex-col shadow-2xl border">
+            <div class="flex justify-between items-center border-b pb-3 border-slate-200 dark:border-slate-800">
+                <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">Live Wi-Fi Clipboard & Voice Talk</h3>
+                <button onclick="closeDrawers()" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <textarea id="clip-text-input" rows="3" onkeydown="handleClipKeyDown(event)" placeholder="Paste text, code snippet, WiFi password, or link here... (Enter to send, Shift+Enter for new line)" 
+                          class="w-full glass-panel border rounded-2xl p-3 text-xs font-mono focus:outline-none focus:border-lime-500 transition resize-none text-slate-900 dark:text-white"></textarea>
+                <div class="flex gap-2">
+                    <button onclick="sendLiveText()" class="flex-1 theme-accent-btn py-2.5 rounded-xl text-xs font-extrabold shadow transition active:scale-95 flex items-center justify-center gap-2">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                        Send Live Snippet
+                    </button>
+                    <button id="voice-rec-btn" onclick="toggleVoiceRecording()" class="glass-panel border border-lime-500/40 hover:bg-lime-500/10 text-lime-600 dark:text-lime-400 py-2.5 px-3.5 rounded-xl text-xs font-extrabold transition active:scale-95 flex items-center justify-center gap-1.5 flex-shrink-0" title="Voice Talk / Record Audio Note">
+                        <i id="voice-rec-icon" data-lucide="mic" class="w-4 h-4 text-lime-500"></i>
+                        <span id="voice-rec-label">Voice Talk</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-2 flex-1 overflow-y-auto pt-2">
+                <div class="flex justify-between items-center">
+                    <h4 class="text-[10px] font-black uppercase tracking-wider text-slate-400">Snippet & Voice History</h4>
+                    <button onclick="clearSnippetHistory()" class="text-xs font-bold text-slate-400 hover:text-rose-500 transition">Clear</button>
+                </div>
+                <div id="snippet-list" class="space-y-2">
+                    <p id="empty-snippets" class="text-center text-xs text-slate-400 py-4 font-medium">No snippets shared yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Direct Wi-Fi Pairing Code & Scanner -->
+    <div id="pair-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-panel max-w-sm w-full rounded-3xl p-6 space-y-4 text-center shadow-2xl relative border">
+            <button onclick="closePairingModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <div>
+                <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Connect Device</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Scan QR or enter remote 6-digit code</p>
+            </div>
+
+            <!-- QR Code Display -->
+            <div class="relative py-2 flex flex-col items-center justify-center">
+                <div id="qrcode" class="p-2 bg-white rounded-2xl shadow-lg border"></div>
+                <div class="mt-3 flex items-center gap-2">
+                    <span id="modal-my-code" class="text-2xl font-black font-mono tracking-widest text-lime-600 dark:text-lime-400">------</span>
+                    <button onclick="regenerateDeviceCode()" title="Generate new code" class="p-1.5 rounded-lg text-slate-400 hover:text-lime-600 transition">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Manual Input & Camera Scanner -->
+            <div class="space-y-2 border-t pt-3 border-slate-200 dark:border-slate-800">
+                <div class="flex justify-between items-center text-xs font-bold text-slate-400">
+                    <span>ENTER REMOTE CODE</span>
+                    <button onclick="toggleQRScanner()" class="text-lime-600 dark:text-lime-400 hover:underline flex items-center gap-1">
+                        <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                        Scan Camera
+                    </button>
+                </div>
+
+                <div id="qr-scanner-container" class="hidden glass-panel border p-2 rounded-xl space-y-2">
+                    <div id="qr-reader" class="overflow-hidden rounded-lg bg-black min-h-[160px]"></div>
+                    <button onclick="stopQRScanner()" class="w-full bg-slate-800 text-slate-300 font-bold py-1.5 rounded-lg text-xs">
+                        Close Camera
+                    </button>
+                </div>
+
+                <div class="flex gap-2">
+                    <input type="text" id="peer-id-input" maxlength="6" placeholder="6-DIGIT CODE" 
+                           class="flex-1 glass-panel border rounded-xl px-3 py-2 font-mono font-bold text-center tracking-widest uppercase text-sm focus:outline-none focus:border-lime-500 transition text-slate-900 dark:text-white">
+                    <button onclick="connectToPeer()" class="theme-accent-btn px-5 py-2 rounded-xl text-xs font-bold transition active:scale-95 shadow">
+                        Pair
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Incoming Direct Pairing Gate -->
+    <div id="pair-request-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-panel max-w-sm w-full rounded-3xl p-6 space-y-4 text-center shadow-2xl relative border">
+            <div class="w-12 h-12 mx-auto bg-lime-500/20 text-lime-600 dark:text-lime-400 rounded-2xl flex items-center justify-center border border-lime-500/30">
+                <i data-lucide="shield-alert" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">Incoming Pair Request</h3>
+                <p id="pair-request-peer-id" class="text-sm font-mono font-bold text-lime-600 dark:text-lime-400 mt-1">Device #------</p>
+                <p class="text-xs text-slate-400 mt-1">An external device is requesting direct P2P connection.</p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="rejectPairingRequest()" class="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 font-bold py-2.5 rounded-xl text-xs transition">
+                    Decline
+                </button>
+                <button onclick="acceptPairingRequest()" class="flex-1 theme-accent-btn font-bold py-2.5 rounded-xl text-xs transition shadow">
+                    Accept & Pair
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Symbolic Guide -->
+    <div id="guide-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-panel max-w-md w-full rounded-3xl p-6 space-y-5 relative shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg theme-accent-btn flex items-center justify-center font-bold text-xs">
+                        <i data-lucide="zap" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">How LimeShare Works</h3>
+                </div>
+                <button onclick="closeGuideModal()" class="p-1 rounded-full text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Symbolic 3-Step Pipeline Flow -->
+            <div class="space-y-4 text-slate-700 dark:text-slate-300 overflow-y-auto pr-1 flex-1">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="glass-panel border p-3 rounded-2xl flex flex-col items-center justify-center space-y-1.5">
+                        <div class="w-10 h-10 rounded-xl bg-lime-500/20 text-lime-600 dark:text-lime-400 flex items-center justify-center">
+                            <i data-lucide="qr-code" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-[11px] font-extrabold">1. Pair</span>
+                        <span class="text-[9px] text-slate-400">PIN or QR</span>
+                    </div>
+
+                    <div class="glass-panel border p-3 rounded-2xl flex flex-col items-center justify-center space-y-1.5">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                            <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-[11px] font-extrabold">2. Drop</span>
+                        <span class="text-[9px] text-slate-400">Files / Folder</span>
+                    </div>
+
+                    <div class="glass-panel border p-3 rounded-2xl flex flex-col items-center justify-center space-y-1.5">
+                        <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                            <i data-lucide="hard-drive" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-[11px] font-extrabold">3. Stream</span>
+                        <span class="text-[9px] text-slate-400">Direct Local</span>
+                    </div>
+                </div>
+
+                <!-- Symbolic Feature Grid -->
+                <div class="grid grid-cols-2 gap-2.5 pt-1">
+                    <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
+                        <i data-lucide="wifi" class="w-5 h-5 text-lime-500 flex-shrink-0"></i>
+                        <div>
+                            <p class="text-[11px] font-bold leading-tight">Same Wi-Fi</p>
+                            <p class="text-[9px] text-slate-400">No data quota used</p>
+                        </div>
+                    </div>
+                    <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
+                        <i data-lucide="lock" class="w-5 h-5 text-emerald-500 flex-shrink-0"></i>
+                        <div>
+                            <p class="text-[11px] font-bold leading-tight">Private P2P</p>
+                            <p class="text-[9px] text-slate-400">0 Cloud Storage</p>
+                        </div>
+                    </div>
+                    <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
+                        <i data-lucide="cpu" class="w-5 h-5 text-sky-500 flex-shrink-0"></i>
+                        <div>
+                            <p class="text-[11px] font-bold leading-tight">Direct Disk</p>
+                            <p class="text-[9px] text-slate-400">0 RAM overhead</p>
+                        </div>
+                    </div>
+                    <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
+                        <i data-lucide="refresh-cw" class="w-5 h-5 text-amber-500 flex-shrink-0"></i>
+                        <div>
+                            <p class="text-[11px] font-bold leading-tight">Auto-Resume</p>
+                            <p class="text-[9px] text-slate-400">Byte checkpoints</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OS Compatibility Symbolic Row -->
+                <div class="glass-panel p-2.5 border rounded-2xl flex items-center justify-around text-slate-400 text-[10px] font-bold">
+                    <span class="flex items-center gap-1"><i data-lucide="laptop" class="w-3.5 h-3.5 text-lime-500"></i> Windows / Mac</span>
+                    <span>•</span>
+                    <span class="flex items-center gap-1"><i data-lucide="smartphone" class="w-3.5 h-3.5 text-emerald-500"></i> Android / iOS</span>
+                    <span>•</span>
+                    <span class="flex items-center gap-1"><i data-lucide="terminal" class="w-3.5 h-3.5 text-sky-500"></i> Linux</span>
+                </div>
+            </div>
+
+            <button onclick="closeGuideModal()" class="w-full theme-accent-btn py-2.5 rounded-xl text-xs font-bold transition shadow flex-shrink-0">
+                Close Guide
+            </button>
+        </div>
+    </div>
+
+    <!-- Media Preview Modal -->
+    <div id="preview-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-panel max-w-lg w-full rounded-3xl p-5 space-y-3 relative shadow-2xl border">
+            <div class="flex justify-between items-center border-b pb-2 border-slate-200 dark:border-slate-800">
+                <h3 id="preview-title" class="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[280px]">Preview</h3>
+                <button onclick="closePreviewModal()" class="p-1 rounded-full text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="preview-body" class="flex items-center justify-center min-h-[180px] max-h-[55vh] overflow-hidden rounded-2xl glass-panel border p-2"></div>
+            <a id="preview-download-btn" href="#" download class="block text-center w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition">
+                Download File
+            </a>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notification -->
+    <div id="status-toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 transform -translate-y-16 opacity-0 transition-all duration-300 pointer-events-none">
+        <div id="status-toast-inner" class="bg-slate-900 border border-slate-700 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5">
+            <span id="toast-icon">⚡</span>
+            <span id="toast-msg">Notification Message</span>
+        </div>
+    </div>
+
+    <script>
+        // High Speed Protocol Constants
+        const MIN_CHUNK_SIZE = 32768;   // 32KB
+        const MAX_CHUNK_SIZE = 524288;  // 512KB
+        const DEFAULT_CHUNK_SIZE = 131072; // 128KB
+        const MAX_BUFFER = 4 * 1024 * 1024; // 4MB
+        const LOW_BUFFER = 1 * 1024 * 1024; // 1MB
+        const PEER_PREFIX = "ls-local-wifi-";
+
+        // Application State
+        let currentChunkSize = DEFAULT_CHUNK_SIZE;
+        let consecutiveFastDrains = 0;
+        let consecutiveBackpressures = 0;
+
+        // User Identity
+        let myID = null;
+        let myUserName = localStorage.getItem('limeshare_user_name');
+        if (!myUserName) {
+            const adjectives = ['Zesty', 'Lime', 'Cosmic', 'Solar', 'Neon', 'Swift', 'Turbo', 'Cyber', 'Emerald', 'Velvet'];
+            const animals = ['Falcon', 'Lynx', 'Panda', 'Otter', 'Tiger', 'Cheetah', 'Eagle', 'Fox', 'Bear', 'Dolphin'];
+            const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const anim = animals[Math.floor(Math.random() * animals.length)];
+            myUserName = `${adj} ${anim}`;
+            localStorage.setItem('limeshare_user_name', myUserName);
+        }
+
+        // Networking State
+        let peer = null;
+        let activeDataConn = null;
+        let isConnected = false;
+        let connectingPeerID = null;
+        let connectionWatchdogTimer = null;
+        let heartbeatInterval = null;
+        let broadcastChannel = null;
+        let mqttClient = null;
+        let localSubnetKey = 'local_lan_default';
+
+        let connectedPeerID = null;
+        let pendingPeerRequest = null;
+        let isAudioMuted = localStorage.getItem('limeshare_audio_muted') === 'true';
+        let lastChimeTime = 0;
+
+        // Voice Recording State
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecordingVoice = false;
+        let voiceTimerInterval = null;
+        let voiceRecordStartTime = 0;
+
+        // File & Snippet Queues
+        let fileHistory = [];
+        let selectedFileIndices = new Set();
+        let snippetHistory = [];
+        let pendingFileQueue = [];
+        let isTransferring = false;
+        let currentTransferFile = null;
+        let lastAttemptedFile = null;
+        
+        let discoveredPeers = {}; 
+        let presenceInterval = null;
+
+        let incomingMeta = null;
+        let receivedChunks = [];
+        let receivedSize = 0;
+        let activePartialTransfers = {};
+        let writableStream = null;
+        let html5QrcodeScanner = null;
+        let db = null;
+        let wakeLock = null;
+        let deferredPrompt = null;
+
+        // Public MQTT Broker Cluster used purely for local subnet key coordination
+        const MQTT_BROKERS = [
+            'wss://broker.emqx.io:8084/mqtt',
+            'wss://broker.hivemq.com:8884/mqtt',
+            'wss://test.mosquitto.org:8081'
+        ];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            lucide.createIcons();
+            initTheme();
+            initPwaSupport();
+
+            await initDB();
+            initPeer();
+            setupDragAndDrop();
+        });
+
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+        }
+
+        function initPeer() {
+            myID = localStorage.getItem('limeshare_my_id');
+            if (!myID || myID.length !== 6) {
+                myID = Math.floor(100000 + Math.random() * 900000).toString();
+                localStorage.setItem('limeshare_my_id', myID);
+            }
+            document.getElementById('my-code-display').innerText = `#${myID}`;
+            document.getElementById('modal-my-code').innerText = myID;
+            const nameEl = document.getElementById('my-name-display');
+            if (nameEl) nameEl.innerText = myUserName;
+
+            const qrContainer = document.getElementById("qrcode");
+            if (qrContainer) {
+                qrContainer.innerHTML = "";
+                new QRCode(qrContainer, {
+                    text: myID,
+                    width: 140,
+                    height: 140,
+                    colorDark: "#0f172a",
+                    colorLight: "#ffffff"
+                });
+            }
+
+            setupLocalPresenceBeacon();
+
+            try {
+                peer = new Peer(PEER_PREFIX + myID, {
+                    debug: 1,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' },
+                            { urls: 'stun:stun.cloudflare.com:3478' }
+                        ],
+                        sdpSemantics: 'unified-plan'
+                    }
+                });
+
+                peer.on('open', () => {
+                    updateRadarStatus("Online • Ready");
+                    checkUrlAutoPair();
+                });
+
+                peer.on('connection', (incomingConn) => {
+                    setupDataConnection(incomingConn, false);
+                });
+
+                peer.on('error', (err) => {
+                    clearConnectionWatchdog();
+                    if (err.type === 'peer-unavailable') {
+                        showToast("Device offline or code incorrect.", "rose");
+                        updateRadarStatus("Peer Unavailable");
+                    } else if (err.type === 'unavailable-id') {
+                        regenerateDeviceCode();
+                    }
+                    if (connectingPeerID) {
+                        connectingPeerID = null;
+                        renderRadarPeers();
+                    }
+                });
+            } catch (e) {
+                updateRadarStatus("Offline Mode");
+            }
+        }
+
+        async function setupLocalPresenceBeacon() {
+            // Compute local network subnet hash from public gateway IP
+            try {
+                const res = await Promise.race([
+                    fetch('https://api.ipify.org?format=json').then(r => r.json()),
+                    fetch('https://cloudflare.com/cdn-cgi/trace').then(r => r.text()).then(t => {
+                        const match = t.match(/ip=(.+)/);
+                        return match ? { ip: match[1].trim() } : null;
+                    })
+                ]).catch(() => null);
+
+                if (res && res.ip) {
+                    localSubnetKey = res.ip.replace(/[^a-zA-Z0-9]/g, '_');
+                }
+            } catch (e) {}
+
+            const localSubnetTopic = `limeshare_local_v7/${localSubnetKey}`;
+
+            if (!broadcastChannel && 'BroadcastChannel' in window) {
+                broadcastChannel = new BroadcastChannel('limeshare_local_channel');
+            }
+
+            if (broadcastChannel) {
+                broadcastChannel.onmessage = (event) => {
+                    handlePresenceMessage(event.data);
+                };
+            }
+
+            function connectMqttBroker(brokerIndex = 0) {
+                if (brokerIndex >= MQTT_BROKERS.length) return;
+                try {
+                    mqttClient = mqtt.connect(MQTT_BROKERS[brokerIndex], {
+                        clientId: 'ls_' + myID + '_' + Math.random().toString(16).substr(2, 6),
+                        keepalive: 10,
+                        connectTimeout: 4000
+                    });
+
+                    mqttClient.on('connect', () => {
+                        mqttClient.subscribe(localSubnetTopic);
+                        sendPresencePing();
+                    });
+
+                    mqttClient.on('message', (t, message) => {
+                        try {
+                            const data = JSON.parse(message.toString());
+                            handlePresenceMessage(data);
+                        } catch(e) {}
+                    });
+
+                    mqttClient.on('error', () => {
+                        try { mqttClient.end(); } catch(e) {}
+                        connectMqttBroker(brokerIndex + 1);
+                    });
+                } catch(e) {
+                    connectMqttBroker(brokerIndex + 1);
+                }
+            }
+
+            connectMqttBroker(0);
+
+            window.sendPresencePing = function() {
+                const payload = {
+                    type: 'presence_ping',
+                    senderID: myID,
+                    userName: myUserName,
+                    timestamp: Date.now(),
+                    deviceType: isMobileDevice() ? 'mobile' : 'laptop'
+                };
+                if (broadcastChannel) broadcastChannel.postMessage(payload);
+                if (mqttClient && mqttClient.connected) {
+                    mqttClient.publish(localSubnetTopic, JSON.stringify(payload));
+                }
+            };
+
+            if (presenceInterval) clearInterval(presenceInterval);
+            sendPresencePing();
+            setTimeout(sendPresencePing, 800);
+
+            presenceInterval = setInterval(() => {
+                const now = Date.now();
+                Object.keys(discoveredPeers).forEach(id => {
+                    if (now - (discoveredPeers[id]?.lastSeen || 0) > 12000) {
+                        delete discoveredPeers[id];
+                    }
+                });
+                sendPresencePing();
+                renderRadarPeers();
+            }, 3500);
+        }
+
+        function handlePresenceMessage(data) {
+            if (!data || !data.senderID || data.senderID === myID) return;
+
+            if (data.type === 'presence_ping') {
+                registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
+                const pong = {
+                    type: 'presence_pong',
+                    senderID: myID,
+                    userName: myUserName,
+                    targetID: data.senderID,
+                    deviceType: isMobileDevice() ? 'mobile' : 'laptop'
+                };
+                const localSubnetTopic = `limeshare_local_v7/${localSubnetKey}`;
+                if (broadcastChannel) broadcastChannel.postMessage(pong);
+                if (mqttClient && mqttClient.connected) {
+                    mqttClient.publish(localSubnetTopic, JSON.stringify(pong));
+                }
+            } else if (data.type === 'presence_pong') {
+                if (data.targetID === myID || !data.targetID) {
+                    registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
+                }
+            }
+        }
+
+        function registerDiscoveredPeer(peerID, deviceType = 'laptop', userName = '') {
+            if (!peerID || peerID === myID) return;
+            discoveredPeers[peerID] = {
+                lastSeen: Date.now(),
+                deviceType: deviceType || 'laptop',
+                userName: userName || `Device #${peerID}`
+            };
+            renderRadarPeers();
+        }
+
+        function renderRadarPeers() {
+            const layer = document.getElementById('radar-peers-layer');
+            if (!layer) return;
+
+            layer.innerHTML = '';
+            const peerIDs = Object.keys(discoveredPeers).filter(id => id !== myID);
+
+            if (peerIDs.length === 0) {
+                if (isConnected && connectedPeerID) {
+                    renderPeerOnRadarNode(layer, connectedPeerID, true, false, 0, 1, 'laptop');
+                } else if (connectingPeerID) {
+                    renderPeerOnRadarNode(layer, connectingPeerID, false, true, 0, 1, 'laptop');
+                }
+                return;
+            }
+
+            const total = peerIDs.length;
+            peerIDs.forEach((peerID, index) => {
+                const isCurrentlyConnected = (isConnected && connectedPeerID === peerID);
+                const isCurrentlyConnecting = (connectingPeerID === peerID);
+                const deviceType = discoveredPeers[peerID]?.deviceType || 'laptop';
+                renderPeerOnRadarNode(layer, peerID, isCurrentlyConnected, isCurrentlyConnecting, index, total, deviceType);
+            });
+        }
+
+        function renderPeerOnRadarNode(layer, peerID, isConn, isConnPending, index, total, deviceType = 'laptop') {
+            const baseAngle = (index * (360 / Math.max(total, 1))) - 45;
+            const rad = (baseAngle * Math.PI) / 180;
+            const radiusPercent = total > 1 ? (index % 2 === 0 ? 36 : 44) : 38;
+            
+            const leftPercent = 50 + radiusPercent * Math.cos(rad);
+            const topPercent = 50 + radiusPercent * Math.sin(rad);
+
+            const peerNode = document.createElement('div');
+            peerNode.className = "absolute flex flex-col items-center cursor-pointer pointer-events-auto transition-all duration-500 hover:scale-110 z-30 -translate-x-1/2 -translate-y-1/2";
+            peerNode.style.left = `${leftPercent}%`;
+            peerNode.style.top = `${topPercent}%`;
+
+            const iconName = deviceType === 'mobile' ? 'smartphone' : 'laptop';
+            const displayName = discoveredPeers[peerID]?.userName || `#${peerID}`;
+
+            let borderStyle = 'border-lime-500/60 bg-white/80 dark:bg-slate-900/80 shadow-lime-500/20';
+            let iconColor = 'text-lime-500';
+            let statusText = 'Tap to Pair';
+            let statusColor = 'text-lime-600 dark:text-lime-400';
+            let pulseBadge = '<span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-lime-400 border-2 border-white dark:border-slate-900 rounded-full animate-ping"></span>';
+
+            if (isConn) {
+                borderStyle = 'border-emerald-500 bg-emerald-500/20 shadow-emerald-500/30 ring-2 ring-emerald-500/50';
+                iconColor = 'text-emerald-500';
+                statusText = 'Connected';
+                statusColor = 'text-emerald-500';
+                pulseBadge = '<span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full shadow"></span>';
+            } else if (isConnPending) {
+                borderStyle = 'border-amber-500 bg-amber-500/20 shadow-amber-500/30 animate-pulse';
+                iconColor = 'text-amber-500';
+                statusText = 'Connecting...';
+                statusColor = 'text-amber-500';
+                pulseBadge = '<span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 border-2 border-white dark:border-slate-900 rounded-full connecting-pulse"></span>';
+            }
+
+            peerNode.innerHTML = `
+                <div class="relative">
+                    <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full glass-panel border-2 ${borderStyle} flex items-center justify-center shadow-xl backdrop-blur-md">
+                        <i data-lucide="${iconName}" class="w-5 h-5 sm:w-6 sm:h-6 ${iconColor}"></i>
+                    </div>
+                    ${pulseBadge}
+                </div>
+                <div class="mt-1 glass-panel px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border border-slate-200/60 dark:border-slate-800/60 text-center shadow-lg backdrop-blur-md bg-white/90 dark:bg-slate-900/90 max-w-[100px]">
+                    <p class="text-[9px] sm:text-[10px] font-extrabold text-slate-800 dark:text-white font-mono leading-none truncate">${escapeHtml(displayName)}</p>
+                    <p class="text-[7px] sm:text-[8px] font-bold ${statusColor} uppercase tracking-wider mt-0.5">${statusText}</p>
+                </div>
+            `;
+
+            peerNode.onclick = () => {
+                if (isConnPending) return;
+                if (!isConn) {
+                    connectToPeer(peerID);
+                } else {
+                    disconnectPeer();
+                }
+            };
+
+            layer.appendChild(peerNode);
+            lucide.createIcons();
+        }
+
+        function connectToPeer(overrideID) {
+            const input = document.getElementById('peer-id-input');
+            const rawInput = (overrideID || (input ? input.value : '')).trim();
+            const targetID = rawInput.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            
+            if (!targetID || targetID.length !== 6) {
+                showToast("Enter a valid 6-digit code", "rose");
+                return;
+            }
+
+            if (targetID === myID) {
+                showToast("Cannot connect to your own device code", "rose");
+                return;
+            }
+
+            if (connectingPeerID === targetID) return;
+
+            if (activeDataConn) {
+                try { activeDataConn.close(); } catch(e) {}
+                activeDataConn = null;
+            }
+
+            connectingPeerID = targetID;
+            isConnected = false;
+            connectedPeerID = null;
+
+            updateRadarStatus(`Connecting #${targetID}...`);
+            renderRadarPeers();
+            showToast(`Reaching #${targetID}...`, "lime");
+
+            const fullPeerID = PEER_PREFIX + targetID;
+
+            if (!peer || peer.destroyed) {
+                initPeer();
+            }
+
+            clearConnectionWatchdog();
+            connectionWatchdogTimer = setTimeout(() => {
+                if (!isConnected) {
+                    showToast(`Connection to #${targetID} timed out.`, "rose");
+                    abortConnectionAttempt();
+                }
+            }, 10000);
+
+            try {
+                const conn = peer.connect(fullPeerID, { reliable: true });
+                setupDataConnection(conn, true);
+            } catch (err) {
+                abortConnectionAttempt();
+                showToast("WebRTC connection failed.", "rose");
+            }
+
+            closePairingModal();
+        }
+
+        function abortConnectionAttempt() {
+            clearConnectionWatchdog();
+            connectingPeerID = null;
+            isConnected = false;
+            connectedPeerID = null;
+            if (activeDataConn) {
+                try { activeDataConn.close(); } catch(e) {}
+                activeDataConn = null;
+            }
+            updateRadarStatus("Online • Ready");
+            renderRadarPeers();
+        }
+
+        function clearConnectionWatchdog() {
+            if (connectionWatchdogTimer) {
+                clearTimeout(connectionWatchdogTimer);
+                connectionWatchdogTimer = null;
+            }
+        }
+
+        function setupDataConnection(conn, isInitiator) {
+            activeDataConn = conn;
+
+            conn.on('open', () => {
+                if (isInitiator) {
+                    conn.send({
+                        type: 'pair_handshake_req',
+                        senderID: myID,
+                        userName: myUserName
+                    });
+                }
+            });
+
+            conn.on('data', (data) => {
+                handleIncomingData(data, conn);
+            });
+
+            conn.on('close', () => {
+                disconnectPeer(false);
+            });
+
+            conn.on('error', () => {
+                disconnectPeer(false);
+            });
+        }
+
+        function handleIncomingData(data, conn) {
+            if (!data) return;
+
+            if (data.type === 'pair_handshake_req') {
+                pendingPeerRequest = { senderID: data.senderID, userName: data.userName, conn };
+                document.getElementById('pair-request-peer-id').innerText = `${data.userName || 'Device'} (#${data.senderID})`;
+                document.getElementById('pair-request-modal').classList.remove('hidden');
+            }
+            else if (data.type === 'pair_handshake_ack') {
+                finalizeConnection(data.senderID, data.userName);
+            }
+            else if (data.type === 'pair_handshake_reject') {
+                showToast("Pairing was declined by peer.", "rose");
+                abortConnectionAttempt();
+            }
+            else if (data.type === 'ping') {
+                try { conn.send({ type: 'pong' }); } catch(e) {}
+            }
+            else if (data.type === 'disconnect') {
+                showToast("Peer ended the session", "rose");
+                preservePartialState();
+                disconnectPeer(false);
+            }
+            else if (data.type === 'text_snippet') {
+                playChime('text');
+                renderTextSnippet(data.text, false, true);
+                switchDockTab('clip');
+                showToast("Received live text snippet", "lime");
+            }
+            else if (data.type === 'voice_snippet') {
+                playChime('text');
+                const audioBlob = new Blob([data.audio], { type: data.mime || 'audio/webm' });
+                renderVoiceSnippet(URL.createObjectURL(audioBlob), false, data.duration || 0);
+                switchDockTab('clip');
+                showToast("Received voice note", "lime");
+            }
+            else if (data.type === 'offer') {
+                handleFileOffer(data);
+            }
+            else if (data.type === 'accept') {
+                if (currentTransferFile || lastAttemptedFile) {
+                    const activeFile = currentTransferFile || lastAttemptedFile;
+                    currentTransferFile = activeFile;
+                    startStreamingChunks(activeFile, data.resumeOffset || 0);
+                }
+            }
+            else if (data.type === 'chunk') {
+                handleIncomingChunk(data.chunk);
+            }
+            else if (data.type === 'end') {
+                handleTransferEnd();
+            }
+        }
+
+        function finalizeConnection(peerID, peerName) {
+            clearConnectionWatchdog();
+            connectingPeerID = null;
+            isConnected = true;
+            connectedPeerID = peerID;
+
+            registerDiscoveredPeer(peerID, 'laptop', peerName);
+            playChime('connect');
+            updateRadarStatus("Connected • P2P Linked");
+
+            const dot = document.getElementById('conn-status-dot');
+            if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+
+            renderRadarPeers();
+            showToast(`Directly Paired with #${peerID}!`, "emerald");
+
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            heartbeatInterval = setInterval(() => {
+                if (isConnected && activeDataConn && activeDataConn.open) {
+                    try { activeDataConn.send({ type: 'ping' }); } catch(e) {}
+                }
+            }, 3000);
+
+            if (pendingFileQueue.length > 0 && !isTransferring) {
+                processNextFileInQueue();
+            }
+        }
+
+        function disconnectPeer(notifyRemote = true) {
+            if (notifyRemote && activeDataConn && activeDataConn.open) {
+                try { activeDataConn.send({ type: 'disconnect' }); } catch(e) {}
+            }
+            if (activeDataConn) {
+                try { activeDataConn.close(); } catch(e) {}
+                activeDataConn = null;
+            }
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+
+            clearConnectionWatchdog();
+            isConnected = false;
+            connectingPeerID = null;
+            connectedPeerID = null;
+            isTransferring = false;
+
+            const dot = document.getElementById('conn-status-dot');
+            if (dot) dot.className = "w-2 h-2 rounded-full bg-slate-400";
+
+            releaseWakeLock();
+            hideProgressUI();
+            updateRadarStatus("Online • Ready");
+            renderRadarPeers();
+            showToast("Direct connection closed", "rose");
+        }
+
+        function acceptPairingRequest() {
+            document.getElementById('pair-request-modal').classList.add('hidden');
+            if (pendingPeerRequest && pendingPeerRequest.conn) {
+                pendingPeerRequest.conn.send({ type: 'pair_handshake_ack', senderID: myID, userName: myUserName });
+                finalizeConnection(pendingPeerRequest.senderID, pendingPeerRequest.userName);
+            }
+            pendingPeerRequest = null;
+        }
+
+        function rejectPairingRequest() {
+            document.getElementById('pair-request-modal').classList.add('hidden');
+            if (pendingPeerRequest && pendingPeerRequest.conn) {
+                pendingPeerRequest.conn.send({ type: 'pair_handshake_reject', senderID: myID });
+                try { pendingPeerRequest.conn.close(); } catch(e) {}
+            }
+            pendingPeerRequest = null;
+            abortConnectionAttempt();
+        }
+
+        function triggerFileUpload() {
+            if (!isConnected || !activeDataConn) {
+                openPairingModal();
+                showToast("Pair with a device to send files", "lime");
+                return;
+            }
+            document.getElementById('file-input').click();
+        }
+
+        function handleFolderClick(e) {
+            if (!isConnected || !activeDataConn) {
+                e.preventDefault();
+                openPairingModal();
+                showToast("Pair with a device to send files", "lime");
+            }
+        }
+
+        function queueFilesForTransfer(files) {
+            if (!isConnected || !activeDataConn) {
+                openPairingModal();
+                showToast("Pair with a device first", "lime");
+                resetFileInputs();
+                return;
+            }
+
+            pendingFileQueue.push(...files);
+            if (!isTransferring) {
+                processNextFileInQueue();
+            }
+        }
+
+        function processNextFileInQueue() {
+            if (pendingFileQueue.length === 0) {
+                isTransferring = false;
+                currentTransferFile = null;
+                return;
+            }
+
+            isTransferring = true;
+            currentTransferFile = pendingFileQueue.shift();
+            lastAttemptedFile = currentTransferFile;
+            
+            showProgressUI(`Offering: ${currentTransferFile.name}`);
+            const payloadMeta = { 
+                type: 'offer', 
+                name: currentTransferFile.name, 
+                size: currentTransferFile.size, 
+                mime: currentTransferFile.type || detectMimeByName(currentTransferFile.name) 
+            };
+            
+            try {
+                activeDataConn.send(payloadMeta);
+            } catch(err) {
+                showToast("Send error.", "rose");
+                preservePartialState();
+                abortTransfer();
+            }
+        }
+
+        async function startStreamingChunks(file, resumeOffset = 0) {
+            await requestWakeLock();
+            showProgressUI(`${resumeOffset > 0 ? 'Resuming' : 'Sending'}: ${file.name}`);
+            updateProgressUI(resumeOffset, file.size);
+
+            let offset = resumeOffset;
+            const dataChannel = activeDataConn ? (activeDataConn.dataChannel || activeDataConn) : null;
+
+            if (dataChannel && 'bufferedAmountLowThreshold' in dataChannel) {
+                dataChannel.bufferedAmountLowThreshold = LOW_BUFFER;
+            }
+
+            currentChunkSize = DEFAULT_CHUNK_SIZE;
+            consecutiveFastDrains = 0;
+            consecutiveBackpressures = 0;
+            updateChunkBadge(currentChunkSize);
+
+            while (offset < file.size) {
+                if (!isConnected || !activeDataConn || !activeDataConn.open) {
+                    preservePartialState();
+                    abortTransfer();
+                    releaseWakeLock();
+                    return;
+                }
+
+                if (dataChannel && dataChannel.bufferedAmount > MAX_BUFFER) {
+                    consecutiveBackpressures++;
+                    consecutiveFastDrains = 0;
+
+                    if (consecutiveBackpressures >= 2 && currentChunkSize > MIN_CHUNK_SIZE) {
+                        currentChunkSize = Math.max(MIN_CHUNK_SIZE, Math.floor(currentChunkSize / 1.5));
+                        updateChunkBadge(currentChunkSize);
+                        consecutiveBackpressures = 0;
+                    }
+
+                    await new Promise(resolve => {
+                        dataChannel.onbufferedamountlow = () => {
+                            dataChannel.onbufferedamountlow = null;
+                            resolve();
+                        };
+                    });
+                } else {
+                    consecutiveFastDrains++;
+                    if (consecutiveFastDrains >= 8 && currentChunkSize < MAX_CHUNK_SIZE) {
+                        currentChunkSize = Math.min(MAX_CHUNK_SIZE, Math.floor(currentChunkSize * 1.5));
+                        updateChunkBadge(currentChunkSize);
+                        consecutiveFastDrains = 0;
+                    }
+                }
+
+                const slice = file.slice(offset, offset + currentChunkSize);
+                try {
+                    const chunkData = await slice.arrayBuffer();
+                    activeDataConn.send({ type: 'chunk', chunk: chunkData });
+
+                    offset += chunkData.byteLength;
+                    updateProgressUI(offset, file.size);
+                } catch(err) {
+                    showToast("Transfer interrupted.", "rose");
+                    preservePartialState();
+                    abortTransfer();
+                    releaseWakeLock();
+                    return;
+                }
+            }
+
+            try { activeDataConn.send({ type: 'end' }); } catch(err) {}
+
+            playChime('complete');
+            releaseWakeLock();
+            showToast(`${file.name} sent successfully!`, "emerald");
+
+            const fileObj = {
+                name: file.name,
+                size: file.size,
+                mime: file.type || detectMimeByName(file.name),
+                blob: file,
+                url: URL.createObjectURL(file),
+                isSent: true
+            };
+            saveFileToDB(fileObj);
+            addFileToHistory(fileObj);
+
+            hideProgressUI();
+            currentTransferFile = null;
+            lastAttemptedFile = null;
+            resetFileInputs();
+            setTimeout(processNextFileInQueue, 150);
+        }
+
+        async function handleFileOffer(data) {
+            const fileId = `${data.name}_${data.size}`;
+            incomingMeta = { ...data, fileId };
+            await requestWakeLock();
+
+            const partial = activePartialTransfers[fileId];
+            if (partial && partial.receivedSize > 0 && partial.receivedSize < data.size) {
+                receivedChunks = [...partial.chunks];
+                receivedSize = partial.receivedSize;
+                showToast(`Resuming from ${formatBytes(receivedSize)}...`, "lime");
+                
+                if (activeDataConn && activeDataConn.open) {
+                    activeDataConn.send({ type: 'accept', resumeOffset: receivedSize });
+                }
+                showProgressUI(`Resuming: ${data.name}`);
+                updateProgressUI(receivedSize, data.size);
+            } 
+            else if (data.size > 50 * 1024 * 1024 && 'showSaveFilePicker' in window) {
+                if (partial) {
+                    delete activePartialTransfers[fileId];
+                    removePartialFromDB(fileId);
+                }
+                receivedChunks = [];
+                receivedSize = 0;
+                document.getElementById('disk-prompt-file-info').innerText = `${data.name} (${formatBytes(data.size)})`;
+                document.getElementById('disk-prompt-card').classList.remove('hidden');
+            } else {
+                if (partial) {
+                    delete activePartialTransfers[fileId];
+                    removePartialFromDB(fileId);
+                }
+                receivedChunks = [];
+                receivedSize = 0;
+                if (activeDataConn && activeDataConn.open) {
+                    activeDataConn.send({ type: 'accept', resumeOffset: 0 });
+                }
+                showProgressUI(`Receiving: ${data.name}`);
+                updateProgressUI(0, data.size);
+            }
+        }
+
+        async function acceptDiskTransfer() {
+            document.getElementById('disk-prompt-card').classList.add('hidden');
+            try {
+                const handle = await window.showSaveFilePicker({ suggestedName: incomingMeta.name });
+                writableStream = await handle.createWritable();
+                if (activeDataConn && activeDataConn.open) {
+                    activeDataConn.send({ type: 'accept', resumeOffset: 0 });
+                }
+                showProgressUI(`Saving to Disk: ${incomingMeta.name}`);
+            } catch (err) {
+                writableStream = null;
+                if (activeDataConn && activeDataConn.open) {
+                    activeDataConn.send({ type: 'accept', resumeOffset: 0 });
+                }
+                showProgressUI(`Receiving (RAM): ${incomingMeta.name}`);
+            }
+        }
+
+        async function handleIncomingChunk(chunkBuffer) {
+            if (writableStream) {
+                await writableStream.write(chunkBuffer);
+            } else {
+                receivedChunks.push(chunkBuffer);
+            }
+            receivedSize += chunkBuffer.byteLength || chunkBuffer.size || 0;
+            if (incomingMeta) updateProgressUI(receivedSize, incomingMeta.size);
+
+            if (incomingMeta && incomingMeta.fileId && receivedSize % (5 * 1024 * 1024) < currentChunkSize) {
+                savePartialToDB(incomingMeta.fileId, incomingMeta, [...receivedChunks], receivedSize);
+            }
+        }
+
+        async function handleTransferEnd() {
+            playChime('complete');
+            releaseWakeLock();
+            
+            if (incomingMeta && incomingMeta.fileId) {
+                delete activePartialTransfers[incomingMeta.fileId];
+                removePartialFromDB(incomingMeta.fileId);
+            }
+
+            if (writableStream) {
+                await writableStream.close();
+                writableStream = null;
+                const fileObj = { name: incomingMeta.name, size: incomingMeta.size, isDiskSaved: true, isSent: false, timestamp: Date.now() };
+                saveFileToDB(fileObj);
+                addFileToHistory(fileObj);
+            } else if (incomingMeta) {
+                saveReceivedFile(receivedChunks, incomingMeta.name, incomingMeta.mime);
+            }
+
+            showToast(`Finished receiving ${incomingMeta ? incomingMeta.name : 'file'}!`, "emerald");
+
+            incomingMeta = null;
+            receivedChunks = [];
+            receivedSize = 0;
+            hideProgressUI();
+            resetFileInputs();
+        }
+
+        function preservePartialState() {
+            if (incomingMeta && incomingMeta.fileId && receivedSize > 0 && receivedSize < incomingMeta.size) {
+                const fileId = incomingMeta.fileId;
+                activePartialTransfers[fileId] = {
+                    meta: incomingMeta,
+                    chunks: [...receivedChunks],
+                    receivedSize: receivedSize
+                };
+                savePartialToDB(fileId, incomingMeta, [...receivedChunks], receivedSize);
+                showToast(`Paused at ${formatBytes(receivedSize)}. Re-pair to resume!`, "amber");
+            }
+        }
+
+        function abortTransfer() {
+            isTransferring = false;
+            currentTransferFile = null;
+            lastAttemptedFile = null;
+            releaseWakeLock();
+            hideProgressUI();
+        }
+
+        function handleFolderSelect(event) {
+            const files = Array.from(event.target.files);
+            if (files.length) queueFilesForTransfer(files);
+            resetFileInputs();
+        }
+
+        function resetFileInputs() {
+            const fileInput = document.getElementById('file-input');
+            const folderInput = document.getElementById('folder-input');
+            if (fileInput) fileInput.value = '';
+            if (folderInput) folderInput.value = '';
+        }
+
+        let speedHistory = new Array(30).fill(0);
+        let lastTime = Date.now();
+        let lastBytes = 0;
+
+        function drawSpeedChart() {
+            const canvas = document.getElementById('speed-chart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const maxSpeed = Math.max(...speedHistory, 1024 * 1024);
+            ctx.beginPath();
+            ctx.strokeStyle = '#84cc16';
+            ctx.lineWidth = 2;
+
+            const step = w / (speedHistory.length - 1);
+            for (let i = 0; i < speedHistory.length; i++) {
+                const x = i * step;
+                const y = h - (speedHistory[i] / maxSpeed) * (h - 6) - 3;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.closePath();
+            const grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, 'rgba(132, 204, 22, 0.35)');
+            grad.addColorStop(1, 'rgba(132, 204, 22, 0.0)');
+            ctx.fillStyle = grad;
+            ctx.fill();
+        }
+
+        function showProgressUI(label) {
+            document.getElementById('progress-card').classList.remove('hidden');
+            document.getElementById('file-info-label').innerText = label;
+            lastTime = Date.now();
+            lastBytes = 0;
+            speedHistory.fill(0);
+        }
+
+        function updateProgressUI(current, total) {
+            const now = Date.now();
+            const timeDiff = (now - lastTime) / 1000;
+
+            if (timeDiff >= 0.15) {
+                const bytesDiff = current - lastBytes;
+                const speedBytesPerSec = bytesDiff / timeDiff;
+                document.getElementById('speed-label').innerText = formatSpeed(speedBytesPerSec);
+                
+                speedHistory.push(speedBytesPerSec);
+                speedHistory.shift();
+                drawSpeedChart();
+
+                lastTime = now;
+                lastBytes = current;
+            }
+
+            const percent = Math.min(100, Math.round((current / Math.max(total, 1)) * 100));
+            document.getElementById('progress-bar').style.width = percent + '%';
+            document.getElementById('percent-label').innerText = percent + '%';
+            document.getElementById('transferred-bytes').innerText = `${formatBytes(current)} / ${formatBytes(total)}`;
+        }
+
+        function hideProgressUI() {
+            setTimeout(() => {
+                document.getElementById('progress-card').classList.add('hidden');
+                document.getElementById('progress-bar').style.width = '0%';
+            }, 800);
+        }
+
+        function saveReceivedFile(chunks, name, mime) {
+            const detectedMime = mime || detectMimeByName(name);
+            const blob = new Blob(chunks, { type: detectedMime || 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+
+            const fileObj = {
+                name: name,
+                size: blob.size,
+                mime: detectedMime,
+                blob: blob,
+                url: url,
+                isSent: false
+            };
+
+            saveFileToDB(fileObj);
+            addFileToHistory(fileObj);
+        }
+
+        function addFileToHistory(fileObj) {
+            const existingIndex = fileHistory.findIndex(f => f.name === fileObj.name);
+            if (existingIndex !== -1) {
+                if (fileHistory[existingIndex].url && fileHistory[existingIndex].url !== fileObj.url) {
+                    try { URL.revokeObjectURL(fileHistory[existingIndex].url); } catch(e) {}
+                }
+                fileHistory.splice(existingIndex, 1);
+            }
+
+            fileHistory.unshift(fileObj);
+            selectedFileIndices.clear();
+            renderFileHistory();
+        }
+
+        function setupDragAndDrop() {
+            const circle = document.getElementById('upload-circle');
+            const fileInput = document.getElementById('file-input');
+
+            if (circle && fileInput) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    document.body.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+                });
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    document.body.addEventListener(eventName, () => circle.classList.add('drag-over-active'), false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    document.body.addEventListener(eventName, () => circle.classList.remove('drag-over-active'), false);
+                });
+
+                document.body.addEventListener('drop', (e) => {
+                    const files = Array.from(e.dataTransfer.files);
+                    if (files.length) queueFilesForTransfer(files);
+                });
+
+                fileInput.addEventListener('change', (e) => {
+                    const files = Array.from(e.target.files);
+                    if (files.length) queueFilesForTransfer(files);
+                });
+            }
+        }
+
+        function handleClipKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendLiveText();
+            }
+        }
+
+        function sendLiveText() {
+            const input = document.getElementById('clip-text-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            if (activeDataConn && activeDataConn.open) {
+                activeDataConn.send({ type: 'text_snippet', text: text });
+            } else {
+                openPairingModal();
+                showToast("Pair with a device to send snippets", "lime");
+                return;
+            }
+
+            renderTextSnippet(text, true, true);
+            input.value = '';
+            showToast("Snippet sent!", "emerald");
+        }
+
+        function renderTextSnippet(text, isSent = false, saveToDatabase = true) {
+            if (saveToDatabase) {
+                saveSnippetToDB({ text, isSent, timestamp: Date.now() });
+            }
+
+            const list = document.getElementById('snippet-list');
+            const emptyState = document.getElementById('empty-snippets');
+            if (emptyState) emptyState.remove();
+
+            const row = document.createElement('div');
+            row.className = "p-3 glass-panel border rounded-2xl space-y-1.5";
+            row.innerHTML = `
+                <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 font-mono">
+                    <span>${isSent ? 'Sent Snippet' : 'Received Snippet'}</span>
+                    <button onclick="copyToClipboard('${escapeHtml(text)}')" class="text-lime-600 dark:text-lime-400 hover:underline">Copy</button>
+                </div>
+                <p class="text-xs font-mono text-slate-800 dark:text-white whitespace-pre-wrap break-all">${escapeHtml(text)}</p>
+            `;
+            list.prepend(row);
+        }
+
+        function clearSnippetHistory() {
+            snippetHistory = [];
+            if (db) {
+                try {
+                    const tx = db.transaction('snippets', 'readwrite');
+                    tx.objectStore('snippets').clear();
+                } catch(e) {}
+            }
+            const list = document.getElementById('snippet-list');
+            if (list) {
+                list.innerHTML = `<p id="empty-snippets" class="text-center text-xs text-slate-400 py-4 font-medium">No snippets shared yet</p>`;
+            }
+            showToast("Snippet log cleared", "rose");
+        }
+
+        async function toggleVoiceRecording() {
+            const btn = document.getElementById('voice-rec-btn');
+            const icon = document.getElementById('voice-rec-icon');
+            const label = document.getElementById('voice-rec-label');
+
+            if (!isRecordingVoice) {
+                if (!isConnected || !activeDataConn || !activeDataConn.open) {
+                    openPairingModal();
+                    showToast("Pair with a device to send voice notes", "lime");
+                    return;
+                }
+
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioChunks = [];
+                    mediaRecorder = new MediaRecorder(stream);
+
+                    mediaRecorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) audioChunks.push(e.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const arrayBuffer = await audioBlob.arrayBuffer();
+                        const duration = Math.max(1, Math.round((Date.now() - voiceRecordStartTime) / 1000));
+
+                        if (activeDataConn && activeDataConn.open) {
+                            activeDataConn.send({ type: 'voice_snippet', audio: arrayBuffer, duration: duration, mime: 'audio/webm' });
+                        }
+
+                        renderVoiceSnippet(URL.createObjectURL(audioBlob), true, duration);
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    isRecordingVoice = true;
+                    voiceRecordStartTime = Date.now();
+
+                    if (btn) btn.className = "bg-rose-600 hover:bg-rose-500 text-white py-2.5 px-3.5 rounded-xl text-xs font-extrabold transition active:scale-95 flex items-center justify-center gap-1.5 flex-shrink-0 animate-pulse";
+                    if (label) label.innerText = "Recording... 0s";
+                    if (icon) icon.setAttribute("data-lucide", "square");
+                    lucide.createIcons();
+
+                    voiceTimerInterval = setInterval(() => {
+                        const elapsed = Math.round((Date.now() - voiceRecordStartTime) / 1000);
+                        if (label) label.innerText = `Recording... ${elapsed}s`;
+                    }, 1000);
+
+                    showToast("Voice Talk recording started...", "lime");
+                } catch (err) {
+                    showToast("Microphone permission required", "rose");
+                }
+            } else {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+                isRecordingVoice = false;
+                clearInterval(voiceTimerInterval);
+
+                if (btn) btn.className = "glass-panel border border-lime-500/40 hover:bg-lime-500/10 text-lime-600 dark:text-lime-400 py-2.5 px-3.5 rounded-xl text-xs font-extrabold transition active:scale-95 flex items-center justify-center gap-1.5 flex-shrink-0";
+                if (label) label.innerText = "Voice Talk";
+                if (icon) icon.setAttribute("data-lucide", "mic");
+                lucide.createIcons();
+
+                showToast("Voice note sent!", "emerald");
+            }
+        }
+
+        function renderVoiceSnippet(audioUrl, isSent = false, duration = 0) {
+            const list = document.getElementById('snippet-list');
+            const emptyState = document.getElementById('empty-snippets');
+            if (emptyState) emptyState.remove();
+
+            const row = document.createElement('div');
+            row.className = "p-3 glass-panel border rounded-2xl space-y-2 border-lime-500/30 bg-lime-500/5";
+            row.innerHTML = `
+                <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 font-mono">
+                    <span class="flex items-center gap-1.5 text-lime-600 dark:text-lime-400">
+                        <i data-lucide="mic" class="w-3.5 h-3.5"></i>
+                        ${isSent ? 'Sent Voice Note' : 'Received Voice Note'} (${duration}s)
+                    </span>
+                    <span>${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+                <audio src="${audioUrl}" controls class="w-full h-9 rounded-lg border border-lime-500/20"></audio>
+            `;
+            list.prepend(row);
+            lucide.createIcons();
+        }
+
+        function initDB() {
+            return new Promise((resolve) => {
+                try {
+                    const req = indexedDB.open('LimeShareLocalV7', 1);
+                    req.onupgradeneeded = (e) => {
+                        const database = e.target.result;
+                        if (!database.objectStoreNames.contains('files')) {
+                            database.createObjectStore('files', { keyPath: 'id', autoIncrement: true });
+                        }
+                        if (!database.objectStoreNames.contains('snippets')) {
+                            database.createObjectStore('snippets', { keyPath: 'id', autoIncrement: true });
+                        }
+                        if (!database.objectStoreNames.contains('partials')) {
+                            database.createObjectStore('partials', { keyPath: 'fileId' });
+                        }
+                    };
+                    req.onsuccess = (e) => {
+                        db = e.target.result;
+                        loadHistoryFromDB();
+                        resolve(db);
+                    };
+                    req.onerror = () => resolve(null);
+                } catch (err) {
+                    resolve(null);
+                }
+            });
+        }
+
+        function saveFileToDB(fileObj) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('files', 'readwrite');
+                tx.objectStore('files').add({
+                    name: fileObj.name,
+                    size: fileObj.size,
+                    mime: fileObj.mime,
+                    blob: fileObj.blob || null,
+                    isSent: fileObj.isSent || false,
+                    isDiskSaved: fileObj.isDiskSaved || false,
+                    timestamp: Date.now()
+                });
+            } catch(e) {}
+        }
+
+        function saveSnippetToDB(snippetObj) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('snippets', 'readwrite');
+                tx.objectStore('snippets').add(snippetObj);
+            } catch(e) {}
+        }
+
+        function savePartialToDB(fileId, meta, chunks, receivedSize) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readwrite');
+                tx.objectStore('partials').put({
+                    fileId: fileId,
+                    meta: meta,
+                    chunks: chunks,
+                    receivedSize: receivedSize,
+                    timestamp: Date.now()
+                });
+            } catch(e) {}
+        }
+
+        function removePartialFromDB(fileId) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readwrite');
+                tx.objectStore('partials').delete(fileId);
+            } catch(e) {}
+        }
+
+        function loadHistoryFromDB() {
+            if (!db) return;
+            try {
+                const fileTx = db.transaction('files', 'readonly');
+                const fileReq = fileTx.objectStore('files').getAll();
+                fileReq.onsuccess = () => {
+                    fileHistory = (fileReq.result || []).map(f => ({
+                        name: f.name,
+                        size: f.size,
+                        mime: f.mime,
+                        url: f.blob ? URL.createObjectURL(f.blob) : null,
+                        isSent: f.isSent,
+                        isDiskSaved: f.isDiskSaved
+                    })).reverse();
+                    renderFileHistory();
+                };
+
+                const snippetTx = db.transaction('snippets', 'readonly');
+                const snippetReq = snippetTx.objectStore('snippets').getAll();
+                snippetReq.onsuccess = () => {
+                    snippetHistory = (snippetReq.result || []).reverse();
+                    snippetHistory.forEach(s => renderTextSnippet(s.text, s.isSent, false));
+                };
+            } catch(e) {}
+        }
+
+        function renderFileHistory() {
+            const list = document.getElementById('file-list');
+            const countBadge = document.getElementById('history-badge-count');
+            if (!list) return;
+
+            list.innerHTML = '';
+            if (countBadge) {
+                countBadge.innerText = fileHistory.length;
+                countBadge.classList.toggle('hidden', fileHistory.length === 0);
+            }
+
+            if (fileHistory.length === 0) {
+                list.innerHTML = `<p id="empty-state" class="text-center text-xs text-slate-400 py-8 font-medium">No files sent or received yet</p>`;
+                return;
+            }
+
+            fileHistory.forEach((file, index) => {
+                const mime = file.mime || detectMimeByName(file.name);
+                const isMedia = mime && (mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/') || mime === 'application/pdf' || mime.startsWith('text/'));
+                const isChecked = selectedFileIndices.has(index);
+
+                const row = document.createElement('div');
+                row.className = `flex justify-between items-center p-3 glass-panel border rounded-2xl transition-all ${isChecked ? 'border-lime-500 bg-lime-500/10' : ''}`;
+                
+                let badgeLabel = file.isSent ? 'Sent' : 'Received';
+                let badgeColor = file.isSent ? 'text-lime-600 bg-lime-500/10 border-lime-500/30' : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30';
+
+                row.innerHTML = `
+                    <div class="flex items-center gap-2.5 truncate mr-2">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleFileSelection(${index}, this.checked)" class="rounded w-4 h-4 accent-lime-500 cursor-pointer flex-shrink-0">
+                        <div class="truncate">
+                            <div class="flex items-center gap-2 truncate">
+                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badgeColor}">${badgeLabel}</span>
+                                <p class="text-xs font-bold text-slate-800 dark:text-white truncate">${escapeHtml(file.name)}</p>
+                            </div>
+                            <p class="text-[10px] text-slate-400 font-mono mt-0.5">${formatBytes(file.size)}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5 flex-shrink-0">
+                        ${(isMedia && file.url) ? `<button onclick="openMediaPreviewByIndex(${index})" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Preview</button>` : ''}
+                        ${file.url ? `<a href="${file.url}" download="${escapeHtml(file.name)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Save</a>` : ''}
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+
+            updateBatchUI();
+        }
+
+        function toggleFileSelection(index, checked) {
+            if (checked) selectedFileIndices.add(index);
+            else selectedFileIndices.delete(index);
+            updateBatchUI();
+        }
+
+        function toggleSelectAll(checked) {
+            if (checked) fileHistory.forEach((_, idx) => selectedFileIndices.add(idx));
+            else selectedFileIndices.clear();
+            renderFileHistory();
+        }
+
+        function updateBatchUI() {
+            const selectAllCb = document.getElementById('select-all-files');
+            const batchZipBtn = document.getElementById('batch-zip-btn');
+            const batchDlBtn = document.getElementById('batch-download-btn');
+            const batchDelBtn = document.getElementById('batch-delete-btn');
+            const zipCount = document.getElementById('selected-count-zip');
+            const dlCount = document.getElementById('selected-count-dl');
+
+            const count = selectedFileIndices.size;
+            const total = fileHistory.length;
+
+            if (selectAllCb) {
+                selectAllCb.checked = (total > 0 && count === total);
+                selectAllCb.classList.toggle('hidden', total === 0);
+            }
+
+            if (batchZipBtn && batchDlBtn && batchDelBtn) {
+                if (count > 0) {
+                    batchZipBtn.classList.remove('hidden');
+                    batchDlBtn.classList.remove('hidden');
+                    batchDelBtn.classList.remove('hidden');
+                    if (zipCount) zipCount.innerText = count;
+                    if (dlCount) dlCount.innerText = count;
+                } else {
+                    batchZipBtn.classList.add('hidden');
+                    batchDlBtn.classList.add('hidden');
+                    batchDelBtn.classList.add('hidden');
+                }
+            }
+        }
+
+        async function downloadSelectedAsZip() {
+            if (typeof JSZip === 'undefined') return showToast("ZIP engine loading...", "amber");
+            const indices = selectedFileIndices.size > 0 ? Array.from(selectedFileIndices) : fileHistory.map((_, i) => i);
+            if (indices.length === 0) return showToast("No files available to zip", "rose");
+
+            showToast(`Creating ZIP archive for ${indices.length} file(s)...`, "lime");
+            try {
+                const zip = new JSZip();
+                for (let i = 0; i < indices.length; i++) {
+                    const file = fileHistory[indices[i]];
+                    if (file) {
+                        if (file.blob) zip.file(file.name, file.blob);
+                        else if (file.url) {
+                            const res = await fetch(file.url);
+                            zip.file(file.name, await res.blob());
+                        }
+                    }
+                }
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `LimeShare_${Date.now()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+                showToast("ZIP archive downloaded!", "emerald");
+            } catch (err) {
+                showToast("Failed to create ZIP archive", "rose");
+            }
+        }
+
+        async function downloadSelectedFiles() {
+            if (selectedFileIndices.size === 0) return;
+            const indices = Array.from(selectedFileIndices);
+            for (let i = 0; i < indices.length; i++) {
+                const file = fileHistory[indices[i]];
+                if (file && file.url) {
+                    const a = document.createElement('a');
+                    a.href = file.url;
+                    a.download = file.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    await new Promise(r => setTimeout(r, 200));
+                }
+            }
+        }
+
+        function deleteSelectedFiles() {
+            if (selectedFileIndices.size === 0) return;
+            fileHistory = fileHistory.filter((_, idx) => !selectedFileIndices.has(idx));
+            selectedFileIndices.clear();
+            if (db) {
+                try {
+                    const tx = db.transaction('files', 'readwrite');
+                    const store = tx.objectStore('files');
+                    store.clear();
+                    fileHistory.forEach(file => {
+                        store.add({
+                            name: file.name,
+                            size: file.size,
+                            mime: file.mime,
+                            blob: file.blob || null,
+                            isSent: file.isSent || false,
+                            isDiskSaved: file.isDiskSaved || false,
+                            timestamp: Date.now()
+                        });
+                    });
+                } catch(e) {}
+            }
+            renderFileHistory();
+            showToast("Selected files deleted", "rose");
+        }
+
+        function clearFileHistory() {
+            fileHistory = [];
+            selectedFileIndices.clear();
+            if (db) {
+                try {
+                    const tx = db.transaction('files', 'readwrite');
+                    tx.objectStore('files').clear();
+                } catch(e) {}
+            }
+            renderFileHistory();
+            showToast("File history cleared", "rose");
+        }
+
+        function playChime(type) {
+            if (isAudioMuted) return;
+            const now = Date.now();
+            if (type === 'complete' && (now - lastChimeTime < 2000)) return;
+            if (type === 'complete') lastChimeTime = now;
+
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                const t = ctx.currentTime;
+                if (type === 'connect') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, t);
+                    osc.frequency.exponentialRampToValueAtTime(659.25, t + 0.12);
+                    gain.gain.setValueAtTime(0.06, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+                    osc.start(t);
+                    osc.stop(t + 0.25);
+                } else if (type === 'complete') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, t);
+                    osc.frequency.setValueAtTime(880.00, t + 0.08);
+                    gain.gain.setValueAtTime(0.05, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                    osc.start(t);
+                    osc.stop(t + 0.3);
+                } else if (type === 'text') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, t);
+                    gain.gain.setValueAtTime(0.04, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+                    osc.start(t);
+                    osc.stop(t + 0.12);
+                }
+            } catch(e) {}
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem('limeshare_theme') || 'lime';
+            changeTheme(saved, false);
+            updateAudioToggleUI();
+        }
+
+        function changeTheme(themeName, showToastMsg = true) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            if (themeName === 'dark-radar' || themeName === 'cyber') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            localStorage.setItem('limeshare_theme', themeName);
+
+            const iconEl = document.getElementById('theme-icon');
+            if (iconEl) {
+                if (themeName === 'lime') iconEl.setAttribute('data-lucide', 'sun');
+                else if (themeName === 'dark-radar') iconEl.setAttribute('data-lucide', 'radar');
+                else if (themeName === 'cyber') iconEl.setAttribute('data-lucide', 'zap');
+                lucide.createIcons();
+            }
+
+            if (showToastMsg) showToast(`Theme: ${themeName.toUpperCase()}`, "lime");
+        }
+
+        function cycleTheme() {
+            const themes = ['lime', 'dark-radar', 'cyber'];
+            const current = localStorage.getItem('limeshare_theme') || 'lime';
+            const nextIdx = (themes.indexOf(current) + 1) % themes.length;
+            changeTheme(themes[nextIdx], true);
+        }
+
+        function toggleAudioMute() {
+            isAudioMuted = !isAudioMuted;
+            localStorage.setItem('limeshare_audio_muted', isAudioMuted ? 'true' : 'false');
+            updateAudioToggleUI();
+            showToast(isAudioMuted ? "Audio Muted" : "Audio Enabled", isAudioMuted ? "amber" : "emerald");
+        }
+
+        function updateAudioToggleUI() {
+            const on = document.getElementById('audio-icon-on');
+            const off = document.getElementById('audio-icon-off');
+            if (on && off) {
+                on.classList.toggle('hidden', isAudioMuted);
+                off.classList.toggle('hidden', !isAudioMuted);
+            }
+        }
+
+        function switchDockTab(tab) {
+            closeDrawers();
+            const btnMain = document.getElementById('dock-btn-main');
+            const btnHist = document.getElementById('dock-btn-history');
+            const btnClip = document.getElementById('dock-btn-clip');
+
+            btnMain.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+            btnHist.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+            btnClip.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+
+            if (tab === 'history') {
+                btnHist.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+                document.getElementById('drawer-history').classList.remove('hidden');
+            } else if (tab === 'clip') {
+                btnClip.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+                document.getElementById('drawer-clip').classList.remove('hidden');
+            } else {
+                btnMain.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+            }
+        }
+
+        function closeDrawers() {
+            document.getElementById('drawer-history').classList.add('hidden');
+            document.getElementById('drawer-clip').classList.add('hidden');
+        }
+
+        function openPairingModal() {
+            document.getElementById('pair-modal').classList.remove('hidden');
+        }
+
+        function closePairingModal() {
+            document.getElementById('pair-modal').classList.add('hidden');
+            stopQRScanner();
+        }
+
+        function openGuideModal() {
+            document.getElementById('guide-modal').classList.remove('hidden');
+        }
+
+        function closeGuideModal() {
+            document.getElementById('guide-modal').classList.add('hidden');
+        }
+
+        function toggleQRScanner() {
+            const container = document.getElementById('qr-scanner-container');
+            if (!container) return;
+
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                if (window.Html5Qrcode) {
+                    html5QrcodeScanner = new Html5Qrcode("qr-reader");
+                    html5QrcodeScanner.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 180, height: 180 } },
+                        (decodedText) => {
+                            const input = document.getElementById('peer-id-input');
+                            if (input) input.value = decodedText.trim().toUpperCase();
+                            stopQRScanner();
+                            connectToPeer();
+                        },
+                        () => {}
+                    ).catch(() => {
+                        showToast("Camera permission required", "rose");
+                        container.classList.add('hidden');
+                    });
+                }
+            } else {
+                stopQRScanner();
+            }
+        }
+
+        function stopQRScanner() {
+            const container = document.getElementById('qr-scanner-container');
+            if (html5QrcodeScanner) {
+                try {
+                    if (html5QrcodeScanner.isScanning) {
+                        html5QrcodeScanner.stop().then(() => {
+                            try { html5QrcodeScanner.clear(); } catch(e) {}
+                            if (container) container.classList.add('hidden');
+                        }).catch(() => {
+                            if (container) container.classList.add('hidden');
+                        });
+                    } else {
+                        try { html5QrcodeScanner.clear(); } catch(e) {}
+                        if (container) container.classList.add('hidden');
+                    }
+                } catch(e) {
+                    if (container) container.classList.add('hidden');
+                }
+            } else {
+                if (container) container.classList.add('hidden');
+            }
+        }
+
+        function copyPairingLink() {
+            if (!myID) return;
+            const url = new URL(window.location.href);
+            url.searchParams.set('pair', myID);
+            copyToClipboard(url.toString());
+            showToast("Magic Wi-Fi link copied!", "emerald");
+        }
+
+        function checkUrlAutoPair() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const pairParam = urlParams.get('pair');
+            if (pairParam && pairParam.length === 6 && pairParam !== myID) {
+                showToast(`Auto-pairing with #${pairParam}...`, "lime");
+                setTimeout(() => connectToPeer(pairParam), 600);
+            }
+        }
+
+        function regenerateDeviceCode() {
+            if (isConnected) disconnectPeer();
+            myID = Math.floor(100000 + Math.random() * 900000).toString();
+            localStorage.setItem('limeshare_my_id', myID);
+            if (peer && !peer.destroyed) {
+                try { peer.destroy(); } catch(e) {}
+                peer = null;
+            }
+            initPeer();
+            showToast(`New Device Code: #${myID}`, "lime");
+        }
+
+        function editMyName() {
+            const newName = prompt("Enter your display name:", myUserName);
+            if (newName && newName.trim()) {
+                myUserName = newName.trim();
+                localStorage.setItem('limeshare_user_name', myUserName);
+                const el = document.getElementById('my-name-display');
+                if (el) el.innerText = myUserName;
+                showToast(`Display name set to: ${myUserName}`, "emerald");
+                if (typeof sendPresencePing === 'function') sendPresencePing();
+            }
+        }
+
+        function updateRadarStatus(text) {
+            const statusEl = document.getElementById('radar-status-text');
+            if (statusEl) statusEl.innerText = text;
+        }
+
+        function updateChunkBadge(sizeInBytes) {
+            const badge = document.getElementById('chunk-size-badge');
+            if (badge) {
+                const kb = Math.round(sizeInBytes / 1024);
+                badge.innerText = `Auto ${kb}KB`;
+            }
+        }
+
+        function copyToClipboard(str) {
+            const el = document.createElement('textarea');
+            el.value = str;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast("Copied to clipboard!", "emerald");
+        }
+
+        function openMediaPreviewByIndex(index) {
+            const file = fileHistory[index];
+            if (!file || !file.url) return;
+
+            const modal = document.getElementById('preview-modal');
+            const title = document.getElementById('preview-title');
+            const body = document.getElementById('preview-body');
+            const dlBtn = document.getElementById('preview-download-btn');
+
+            const mime = file.mime || detectMimeByName(file.name);
+            title.innerText = file.name;
+            dlBtn.href = file.url;
+            dlBtn.download = file.name;
+            body.innerHTML = '';
+
+            if (mime.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = file.url;
+                img.className = "max-h-[55vh] max-w-full object-contain rounded-xl shadow-lg";
+                body.appendChild(img);
+            } else if (mime.startsWith('video/')) {
+                const video = document.createElement('video');
+                video.src = file.url;
+                video.controls = true;
+                video.autoplay = true;
+                video.className = "max-h-[55vh] w-full rounded-xl";
+                body.appendChild(video);
+            } else if (mime.startsWith('audio/')) {
+                const audio = document.createElement('audio');
+                audio.src = file.url;
+                audio.controls = true;
+                audio.autoplay = true;
+                audio.className = "w-full p-4";
+                body.appendChild(audio);
+            } else if (mime === 'application/pdf') {
+                const iframe = document.createElement('iframe');
+                iframe.src = file.url;
+                iframe.className = "w-full h-[50vh] rounded-xl border border-slate-700";
+                body.appendChild(iframe);
+            } else if (mime.startsWith('text/')) {
+                fetch(file.url).then(res => res.text()).then(text => {
+                    const pre = document.createElement('pre');
+                    pre.className = "text-xs font-mono text-slate-800 dark:text-white p-3 glass-panel rounded-xl overflow-auto max-h-[50vh] w-full whitespace-pre-wrap";
+                    pre.innerText = text.slice(0, 10000);
+                    body.appendChild(pre);
+                });
+            } else {
+                body.innerHTML = `<p class="text-xs text-slate-400 p-4">Preview not available for this file type.</p>`;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closePreviewModal() {
+            const modal = document.getElementById('preview-modal');
+            const body = document.getElementById('preview-body');
+            if (body) body.innerHTML = '';
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function showToast(message, type = "lime") {
+            const toast = document.getElementById('status-toast');
+            const toastInner = document.getElementById('status-toast-inner');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIcon = document.getElementById('toast-icon');
+
+            if (!toast || !toastMsg) return;
+            toastMsg.innerText = message;
+            
+            if (type === 'emerald') {
+                if (toastIcon) toastIcon.innerText = "✅";
+                if (toastInner) toastInner.className = "bg-emerald-950 border border-emerald-500/50 text-emerald-200 text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5";
+            } else if (type === 'rose') {
+                if (toastIcon) toastIcon.innerText = "🛡️";
+                if (toastInner) toastInner.className = "bg-rose-950 border border-rose-500/50 text-rose-200 text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5";
+            } else if (type === 'amber') {
+                if (toastIcon) toastIcon.innerText = "⚠️";
+                if (toastInner) toastInner.className = "bg-amber-950 border border-amber-500/50 text-amber-200 text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5";
+            } else {
+                if (toastIcon) toastIcon.innerText = "⚡";
+                if (toastInner) toastInner.className = "bg-slate-900 border border-slate-700 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5";
+            }
+
+            toast.classList.remove('opacity-0', '-translate-y-16', 'pointer-events-none');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-16', 'pointer-events-none');
+            }, 3500);
+        }
+
+        function initPwaSupport() {
+            const manifestData = {
+                name: "LimeShare Local P2P",
+                short_name: "LimeShare",
+                start_url: window.location.href,
+                display: "standalone",
+                background_color: "#080c0a",
+                theme_color: "#84cc16",
+                icons: [
+                    {
+                        src: "https://placehold.co/192x192/84cc16/ffffff?text=LimeShare",
+                        sizes: "192x192",
+                        type: "image/png"
+                    },
+                    {
+                        src: "https://placehold.co/512x512/84cc16/ffffff?text=LimeShare",
+                        sizes: "512x512",
+                        type: "image/png"
+                    }
+                ]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+            const manifestUrl = URL.createObjectURL(manifestBlob);
+            const manifestLink = document.getElementById('pwa-manifest-link');
+            if (manifestLink) manifestLink.setAttribute('href', manifestUrl);
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                const pwaBtn = document.getElementById('pwa-install-btn');
+                if (pwaBtn) pwaBtn.classList.remove('hidden');
+            });
+        }
+
+        async function triggerPwaInstall() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                showToast("LimeShare installed successfully!", "emerald");
+            }
+            deferredPrompt = null;
+            const pwaBtn = document.getElementById('pwa-install-btn');
+            if (pwaBtn) pwaBtn.classList.add('hidden');
+        }
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {}
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => { wakeLock = null; }).catch(() => {});
+            }
+        }
+
+        function detectMimeByName(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const map = {
+                'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml',
+                'mp4': 'video/mp4', 'webm': 'video/webm', 'ogv': 'video/ogg', 'mov': 'video/quicktime',
+                'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg', 'm4a': 'audio/mp4',
+                'pdf': 'application/pdf', 'txt': 'text/plain', 'json': 'application/json', 'html': 'text/html', 'zip': 'application/zip'
+            };
+            return map[ext] || '';
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function formatSpeed(bytesPerSec) {
+            return formatBytes(bytesPerSec) + '/s';
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+    </script>
+</body>
+</html>
