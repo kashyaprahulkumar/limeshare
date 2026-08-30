@@ -258,7 +258,7 @@
         <div class="glass-panel rounded-xl px-3 py-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
             🔒 <span class="text-emerald-600 dark:text-emerald-400">Private pairing only.</span>
             This public version does not broadcast your device to other website visitors.
-            Connect by scanning a local QR. Internet is not required.
+            Connect using QR, pairing code, or private link.
         </div>
     </div>
 
@@ -526,59 +526,57 @@
         </div>
     </div>
 
-    <!-- Modal: Pure Local QR Pairing -->
+    <!-- Modal: Pure Local Offline Pairing -->
     <div id="pair-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
-        <div class="glass-panel max-w-md w-full rounded-3xl p-6 space-y-4 shadow-2xl relative border max-h-[92vh] overflow-y-auto">
+        <div class="glass-panel max-w-lg w-full rounded-3xl p-6 space-y-4 shadow-2xl relative border max-h-[92vh] overflow-y-auto">
             <button onclick="closePairingModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
             <div class="pr-8">
-                <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Local QR Pairing</h3>
-                <p class="text-xs text-slate-400 mt-1">Same hotspot/Wi-Fi • No Internet • Direct device-to-device</p>
+                <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Pure Local Transfer</h3>
+                <p class="text-xs text-slate-400 mt-1">No Internet • No cloud • No STUN • Hotspot/Wi-Fi only</p>
             </div>
 
-            <div class="glass-panel border rounded-2xl p-4 space-y-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl theme-accent-btn flex items-center justify-center text-white font-extrabold">1</div>
-                    <div>
-                        <p class="text-xs font-extrabold text-slate-900 dark:text-white">Start on this device</p>
-                        <p class="text-[10px] text-slate-400">Create a QR code for the other device to scan.</p>
-                    </div>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="startOfflineOffer()" class="theme-accent-btn rounded-xl px-3 py-2.5 text-xs font-extrabold">Create Offer</button>
+                <button onclick="prepareOfflineAnswer()" class="glass-panel border rounded-xl px-3 py-2.5 text-xs font-extrabold text-slate-700 dark:text-slate-200">Join / Answer</button>
+            </div>
+
+            <div class="glass-panel border rounded-2xl p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Step 1 — Offer</span>
+                    <button onclick="copyOfflineOffer()" class="text-[10px] font-bold text-lime-600">Copy</button>
                 </div>
-                <button onclick="startOfflineOffer()" class="theme-accent-btn w-full rounded-xl py-2.5 text-xs font-extrabold">Create Connection QR</button>
-                <div id="offline-offer-qr" class="hidden min-h-[210px] flex items-center justify-center rounded-2xl bg-white p-3"></div>
-                <textarea id="offline-offer" readonly class="hidden"></textarea>
-                <button id="copy-offer-fallback" onclick="copyOfflineOffer()" class="hidden w-full glass-panel border rounded-xl py-2 text-[10px] font-bold text-slate-600 dark:text-slate-300">Copy code instead</button>
+                <textarea id="offline-offer" readonly placeholder="Device A: tap Create Offer. Then send this text to Device B."
+                    class="w-full h-28 glass-panel border rounded-xl p-2 text-[9px] font-mono resize-none text-slate-900 dark:text-white"></textarea>
             </div>
 
-            <div class="glass-panel border rounded-2xl p-4 space-y-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 font-extrabold">2</div>
-                    <div>
-                        <p class="text-xs font-extrabold text-slate-900 dark:text-white">Other device</p>
-                        <p class="text-[10px] text-slate-400">Scan the QR. It will automatically prepare the reply.</p>
-                    </div>
+            <div class="glass-panel border rounded-2xl p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Step 2 — Paste Offer</span>
                 </div>
-                <button onclick="startOfflineQRScanner('offer')" class="w-full glass-panel border border-lime-500/40 rounded-xl py-2.5 text-xs font-extrabold text-lime-600">Scan Connection QR</button>
+                <textarea id="offline-remote-offer" placeholder="Device B: paste Device A's offer here."
+                    class="w-full h-24 glass-panel border rounded-xl p-2 text-[9px] font-mono resize-none text-slate-900 dark:text-white"></textarea>
+                <button onclick="createOfflineAnswer()" class="w-full glass-panel border border-lime-500/40 rounded-xl py-2 text-xs font-extrabold text-lime-600">Create Answer</button>
             </div>
 
-            <div class="glass-panel border rounded-2xl p-4 space-y-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 font-extrabold">3</div>
-                    <div>
-                        <p class="text-xs font-extrabold text-slate-900 dark:text-white">Finish</p>
-                        <p class="text-[10px] text-slate-400">The second device shows a reply QR. Scan it here.</p>
-                    </div>
+            <div class="glass-panel border rounded-2xl p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Step 3 — Answer</span>
+                    <button onclick="copyOfflineAnswer()" class="text-[10px] font-bold text-lime-600">Copy</button>
                 </div>
-                <button onclick="startOfflineQRScanner('answer')" class="w-full theme-accent-btn rounded-xl py-2.5 text-xs font-extrabold">Scan Reply QR</button>
-                <div id="offline-answer-qr" class="hidden min-h-[210px] flex items-center justify-center rounded-2xl bg-white p-3"></div>
-                <textarea id="offline-answer" readonly class="hidden"></textarea>
-                <textarea id="offline-remote-offer" class="hidden"></textarea>
-                <textarea id="offline-remote-answer" class="hidden"></textarea>
+                <textarea id="offline-answer" readonly placeholder="Device B: your answer appears here. Send it back to Device A."
+                    class="w-full h-28 glass-panel border rounded-xl p-2 text-[9px] font-mono resize-none text-slate-900 dark:text-white"></textarea>
             </div>
 
-            <div id="qr-reader" class="hidden rounded-2xl overflow-hidden border"></div>
-            <p id="offline-pair-status" class="text-[10px] leading-relaxed text-slate-400 text-center">Connect both devices to the same hotspot first. Internet is not required for the transfer.</p>
+            <div class="glass-panel border rounded-2xl p-3 space-y-2">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Step 4 — Paste Answer on Device A</span>
+                <textarea id="offline-remote-answer" placeholder="Device A: paste Device B's answer here."
+                    class="w-full h-24 glass-panel border rounded-xl p-2 text-[9px] font-mono resize-none text-slate-900 dark:text-white"></textarea>
+                <button onclick="finishOfflineConnection()" class="theme-accent-btn w-full rounded-xl py-2 text-xs font-extrabold">Connect Directly</button>
+            </div>
+
+            <p class="text-[9px] leading-relaxed text-slate-400 text-center">The pairing text is only connection metadata. File bytes and chat data travel directly between the two devices after the connection is established.</p>
         </div>
     </div>
 
@@ -864,6 +862,117 @@
             const raw = (text || '').trim();
             if (!raw) throw new Error('Empty pairing data');
             return JSON.parse(raw);
+        }
+
+        async function startOfflineOffer() {
+            try {
+                if (!window.RTCPeerConnection) throw new Error('WebRTC is not supported by this browser');
+                const pc = makeOfflinePC('offer');
+                const channel = pc.createDataChannel('limeshare', { ordered: true });
+                setupOfflineDataConnection(channel, true);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                await waitForIceComplete(pc);
+                document.getElementById('offline-offer').value = encodeSignal({
+                    type: 'offer', sdp: pc.localDescription.sdp, id: myID, name: myUserName
+                });
+                showToast('Offer ready — send it to the other device', 'lime');
+            } catch (e) {
+                showToast(`Could not create offer: ${e.message}`, 'rose');
+            }
+        }
+
+        function prepareOfflineAnswer() {
+            document.getElementById('offline-remote-offer').focus();
+            showToast("Paste the other device's offer, then tap Create Answer", 'lime');
+        }
+
+        async function createOfflineAnswer() {
+            try {
+                const signal = decodeSignal(document.getElementById('offline-remote-offer').value);
+                if (signal.type !== 'offer') throw new Error('That is not an offer');
+                const pc = makeOfflinePC('answer');
+                await pc.setRemoteDescription({ type: 'offer', sdp: signal.sdp });
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                await waitForIceComplete(pc);
+                document.getElementById('offline-answer').value = encodeSignal({
+                    type: 'answer', sdp: pc.localDescription.sdp, id: myID, name: myUserName
+                });
+                showToast('Answer ready — send it back to Device A', 'lime');
+            } catch (e) {
+                showToast(`Could not create answer: ${e.message}`, 'rose');
+            }
+        }
+
+        async function finishOfflineConnection() {
+            try {
+                if (!offlinePC || offlineRole !== 'offer') throw new Error('First tap Create Offer on this device');
+                const signal = decodeSignal(document.getElementById('offline-remote-answer').value);
+                if (signal.type !== 'answer') throw new Error('That is not an answer');
+                await offlinePC.setRemoteDescription({ type: 'answer', sdp: signal.sdp });
+                showToast('Connecting directly over local Wi-Fi…', 'lime');
+            } catch (e) {
+                showToast(`Could not connect: ${e.message}`, 'rose');
+            }
+        }
+
+        function setupOfflineDataConnection(channel, isInitiator) {
+            let pendingBinary = null;
+            const conn = {
+                dataChannel: channel,
+                get open() { return channel.readyState === 'open'; },
+                send: data => {
+                    if (data && data.type === 'chunk' && data.chunk) {
+                        channel.send(JSON.stringify({ __ls_binary: true, type: 'chunk' }));
+                        channel.send(data.chunk);
+                        return;
+                    }
+                    if (data && data.type === 'voice_snippet' && data.audio) {
+                        const meta = { ...data };
+                        delete meta.audio;
+                        channel.send(JSON.stringify({ __ls_binary: true, type: 'voice_snippet', meta }));
+                        channel.send(data.audio);
+                        return;
+                    }
+                    if (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || data instanceof Blob) {
+                        channel.send(data);
+                    } else {
+                        channel.send(JSON.stringify(data));
+                    }
+                },
+                close: () => channel.close()
+            };
+            activeDataConn = conn;
+
+            channel.binaryType = 'arraybuffer';
+            channel.onopen = () => {
+                if (isInitiator) {
+                    conn.send({ type: 'pair_handshake_req', senderID: myID, userName: myUserName });
+                }
+            };
+            channel.onmessage = event => {
+                let data = event.data;
+                if (typeof data !== 'string') {
+                    if (pendingBinary?.type === 'chunk') {
+                        pendingBinary = null;
+                        handleIncomingChunk(data);
+                    } else if (pendingBinary?.type === 'voice_snippet') {
+                        const meta = pendingBinary.meta || {};
+                        pendingBinary = null;
+                        handleIncomingData({ ...meta, type: 'voice_snippet', audio: data }, conn);
+                    }
+                    return;
+                }
+                try { data = JSON.parse(data); } catch(e) { return; }
+                if (data && data.__ls_binary) {
+                    pendingBinary = { type: data.type, meta: data.meta || null };
+                    return;
+                }
+                handleIncomingData(data, conn);
+            };
+            channel.onclose = () => disconnectPeer(false);
+            channel.onerror = () => disconnectPeer(false);
         }
 
         function registerDiscoveredPeer(peerID, deviceType = 'laptop', userName = '') {
@@ -2393,153 +2502,62 @@
             document.getElementById('guide-modal').classList.add('hidden');
         }
 
-        function signalBytesToBase64(bytes) {
-            let binary = '';
-            const chunk = 0x8000;
-            for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-            return btoa(binary);
-        }
-
-        function base64ToBytes(base64) {
-            const binary = atob(base64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            return bytes;
-        }
-
-        async function encodeSignalQR(obj) {
-            const json = JSON.stringify(obj);
-            if ('CompressionStream' in window) {
-                const cs = new CompressionStream('deflate-raw');
-                const writer = cs.writable.getWriter();
-                writer.write(new TextEncoder().encode(json));
-                writer.close();
-                const compressed = new Uint8Array(await new Response(cs.readable).arrayBuffer());
-                return 'LS1.' + signalBytesToBase64(compressed);
-            }
-            return 'LS0.' + btoa(unescape(encodeURIComponent(json)));
-        }
-
-        async function decodeSignalQR(text) {
-            const raw = (text || '').trim();
-            if (!raw) throw new Error('Empty QR data');
-            if (raw.startsWith('LS1.')) {
-                if (!('DecompressionStream' in window)) throw new Error('This browser cannot decode the compressed QR');
-                const ds = new DecompressionStream('deflate-raw');
-                const writer = ds.writable.getWriter();
-                writer.write(base64ToBytes(raw.slice(4)));
-                writer.close();
-                const json = await new Response(ds.readable).text();
-                return JSON.parse(json);
-            }
-            if (raw.startsWith('LS0.')) return JSON.parse(decodeURIComponent(escape(atob(raw.slice(4)))));
-            return decodeSignal(raw);
-        }
-
-        async function showSignalQR(elementId, payload) {
-            const el = document.getElementById(elementId);
-            if (!el || !window.QRCode) throw new Error('QR generator is unavailable');
-            el.innerHTML = '';
-            el.classList.remove('hidden');
-            new QRCode(el, { text: payload, width: 190, height: 190, correctLevel: QRCode.CorrectLevel.M });
-        }
-
-        async function startOfflineOffer() {
-            try {
-                if (!window.RTCPeerConnection) throw new Error('WebRTC is not supported by this browser');
-                const pc = makeOfflinePC('offer');
-                const channel = pc.createDataChannel('limeshare', { ordered: true });
-                setupOfflineDataConnection(channel, true);
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                await waitForIceComplete(pc);
-                const signal = { type: 'offer', sdp: pc.localDescription.sdp, id: myID, name: myUserName };
-                const payload = await encodeSignalQR(signal);
-                document.getElementById('offline-offer').value = payload;
-                await showSignalQR('offline-offer-qr', payload);
-                document.getElementById('copy-offer-fallback').classList.remove('hidden');
-                document.getElementById('offline-pair-status').innerText = 'Show this QR to the other device. They scan it and get a reply QR.';
-                showToast('Connection QR ready', 'lime');
-            } catch (e) {
-                showToast(`Could not create QR: ${e.message}`, 'rose');
-            }
-        }
-
-        async function createOfflineAnswerFromSignal(signal) {
-            if (signal.type !== 'offer') throw new Error('That QR is not a connection offer');
-            const pc = makeOfflinePC('answer');
-            await pc.setRemoteDescription({ type: 'offer', sdp: signal.sdp });
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            await waitForIceComplete(pc);
-            const answerSignal = { type: 'answer', sdp: pc.localDescription.sdp, id: myID, name: myUserName };
-            const payload = await encodeSignalQR(answerSignal);
-            document.getElementById('offline-answer').value = payload;
-            await showSignalQR('offline-answer-qr', payload);
-            document.getElementById('offline-pair-status').innerText = 'Reply QR ready. Show it to the device that created the first QR.';
-            showToast('Reply QR ready', 'lime');
-        }
-
-        async function finishOfflineConnectionFromSignal(signal) {
-            if (!offlinePC || offlineRole !== 'offer') throw new Error('Create the first QR on this device first');
-            if (signal.type !== 'answer') throw new Error('That QR is not a reply');
-            await offlinePC.setRemoteDescription({ type: 'answer', sdp: signal.sdp });
-            document.getElementById('offline-pair-status').innerText = 'Connecting directly over local Wi-Fi…';
-            showToast('Connecting directly over local Wi-Fi…', 'lime');
-        }
-
-        async function startOfflineQRScanner(mode) {
-            const container = document.getElementById('qr-reader');
-            if (!container || !window.Html5Qrcode) {
-                showToast('QR scanner is unavailable. Use the copy-code fallback.', 'rose');
-                return;
-            }
-            stopQRScanner();
-            container.classList.remove('hidden');
-            try {
-                html5QrcodeScanner = new Html5Qrcode('qr-reader');
-                await html5QrcodeScanner.start(
-                    { facingMode: 'environment' },
-                    { fps: 10, qrbox: { width: 220, height: 220 } },
-                    async decodedText => {
-                        try {
-                            stopQRScanner();
-                            const signal = await decodeSignalQR(decodedText);
-                            if (mode === 'offer') {
-                                await createOfflineAnswerFromSignal(signal);
-                            } else {
-                                await finishOfflineConnectionFromSignal(signal);
-                            }
-                        } catch (e) {
-                            showToast(`QR pairing failed: ${e.message}`, 'rose');
-                        }
-                    },
-                    () => {}
-                );
-                showToast(`Scan the ${mode === 'offer' ? 'connection' : 'reply'} QR`, 'lime');
-            } catch (e) {
-                stopQRScanner();
-                showToast('Camera permission is required for QR pairing', 'rose');
-            }
-        }
-
         function toggleQRScanner() {
-            startOfflineQRScanner('offer');
+            const container = document.getElementById('qr-scanner-container');
+            if (!container) return;
+
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                if (window.Html5Qrcode) {
+                    html5QrcodeScanner = new Html5Qrcode("qr-reader");
+                    html5QrcodeScanner.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 180, height: 180 } },
+                        (decodedText) => {
+                            const raw = decodedText.trim();
+                            let code = raw;
+                            try {
+                                const u = new URL(raw);
+                                code = u.searchParams.get('pair') || raw;
+                            } catch(e) {}
+                            code = (code || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                            const input = document.getElementById('peer-id-input');
+                            if (input) input.value = code.slice(0, 6);
+                            stopQRScanner();
+                            connectToPeer();
+                        },
+                        () => {}
+                    ).catch(() => {
+                        showToast("Camera permission required", "rose");
+                        container.classList.add('hidden');
+                    });
+                }
+            } else {
+                stopQRScanner();
+            }
         }
 
         function stopQRScanner() {
-            const container = document.getElementById('qr-reader');
+            const container = document.getElementById('qr-scanner-container');
             if (html5QrcodeScanner) {
                 try {
                     if (html5QrcodeScanner.isScanning) {
-                        html5QrcodeScanner.stop().then(() => { try { html5QrcodeScanner.clear(); } catch(e) {} }).catch(() => {});
+                        html5QrcodeScanner.stop().then(() => {
+                            try { html5QrcodeScanner.clear(); } catch(e) {}
+                            if (container) container.classList.add('hidden');
+                        }).catch(() => {
+                            if (container) container.classList.add('hidden');
+                        });
                     } else {
                         try { html5QrcodeScanner.clear(); } catch(e) {}
+                        if (container) container.classList.add('hidden');
                     }
-                } catch(e) {}
-                html5QrcodeScanner = null;
+                } catch(e) {
+                    if (container) container.classList.add('hidden');
+                }
+            } else {
+                if (container) container.classList.add('hidden');
             }
-            if (container) container.classList.add('hidden');
         }
 
         function copyPairingLink() {
@@ -2556,15 +2574,15 @@
 
         async function copyOfflineOffer() {
             const v = document.getElementById('offline-offer')?.value || '';
-            if (!v) return showToast('Create the connection QR first', 'rose');
-            try { await navigator.clipboard.writeText(v); } catch(e) { const ta=document.getElementById('offline-offer'); ta.classList.remove('hidden'); ta.select(); document.execCommand('copy'); ta.classList.add('hidden'); }
-            showToast('Pairing code copied', 'emerald');
+            if (!v) return showToast('Create an offer first', 'rose');
+            await navigator.clipboard?.writeText(v);
+            showToast('Offer copied', 'emerald');
         }
         async function copyOfflineAnswer() {
             const v = document.getElementById('offline-answer')?.value || '';
-            if (!v) return showToast('Create the reply QR first', 'rose');
-            try { await navigator.clipboard.writeText(v); } catch(e) {}
-            showToast('Reply code copied', 'emerald');
+            if (!v) return showToast('Create an answer first', 'rose');
+            await navigator.clipboard?.writeText(v);
+            showToast('Answer copied', 'emerald');
         }
 
         function regenerateDeviceCode() {
