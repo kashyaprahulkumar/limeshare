@@ -1791,6 +1791,8 @@
             currentChunkSize = DEFAULT_CHUNK_SIZE;
             updateChunkBadge(currentChunkSize);
 
+            // ISSUE 2 FIX: High-Speed Block Prefetching
+            // Read 2MB blocks from disk at once, then slice 64KB chunks in memory synchronously
             while (offset < file.size) {
                 if (!isConnected || !activeDataConn || !activeDataConn.open) {
                     preservePartialState();
@@ -1799,8 +1801,8 @@
                     return;
                 }
 
+                // Wait if outgoing WebRTC buffer exceeds 4MB
                 const currentBuffer = rawDC ? rawDC.bufferedAmount : 0;
-
                 if (currentBuffer > MAX_BUFFER) {
                     await new Promise(resolve => {
                         let done = false;
@@ -1812,9 +1814,7 @@
                             }
                         };
 
-                        if (rawDC) {
-                            rawDC.addEventListener('bufferedamountlow', drainHandler);
-                        }
+                        if (rawDC) rawDC.addEventListener('bufferedamountlow', drainHandler);
 
                         const timer = setInterval(() => {
                             if (!rawDC || rawDC.bufferedAmount <= LOW_BUFFER) {
@@ -1825,30 +1825,69 @@
                                     resolve();
                                 }
                             }
-                        }, 10);
+                        }, 8);
                     });
                 }
 
-                const slice = file.slice(offset, offset + currentChunkSize);
+                // Prefetch a 2MB block into RAM to eliminate async disk slicing latency
+                const blockEnd = Math.min(file.size, offset + BLOCK_READ_SIZE);
+                const blockSlice = file.slice(offset, blockEnd);
+                let blockBuffer;
                 try {
-                    const chunkData = await slice.arrayBuffer();
+                    blockBuffer = await blockSlice.arrayBuffer();
+                } catch(err) {
+                    showToast("Failed to read file block.", "rose");
+                    preservePartialState();
+                    abortTransfer();
+                    releaseWakeLock();
+                    return;
+                }
 
-                    // Send via active PeerJS connection for standard packet packing
-                    activeDataConn.send(chunkData);
+                // Stream 64KB sub-chunks from the memory buffer directly
+                let blockOffset = 0;
+                while (blockOffset < blockBuffer.byteLength) {
+                    if (!isConnected || !activeDataConn || !activeDataConn.open) {
+                        preservePartialState();
+                        abortTransfer();
+                        releaseWakeLock();
+                        return;
+                    }
 
+                    // Intra-block backpressure check
+                    if (rawDC && rawDC.bufferedAmount > MAX_BUFFER) {
+                        await new Promise(res => {
+                            const handler = () => {
+                                if (rawDC.bufferedAmount <= LOW_BUFFER) {
+                                    rawDC.removeEventListener('bufferedamountlow', handler);
+                                    res();
+                                }
+                            };
+                            rawDC.addEventListener('bufferedamountlow', handler);
+                            setTimeout(res, 12);
+                        });
+                    }
+
+                    const chunkEnd = Math.min(blockBuffer.byteLength, blockOffset + currentChunkSize);
+                    const chunkData = blockBuffer.slice(blockOffset, chunkEnd);
+
+                    try {
+                        activeDataConn.send(chunkData);
+                    } catch(err) {
+                        showToast("Transfer interrupted.", "rose");
+                        preservePartialState();
+                        abortTransfer();
+                        releaseWakeLock();
+                        return;
+                    }
+
+                    blockOffset += chunkData.byteLength;
                     offset += chunkData.byteLength;
-                    
+
                     const now = performance.now();
                     if (now - lastUiUpdate > 60) {
                         lastUiUpdate = now;
                         updateProgressUI(offset, file.size);
                     }
-                } catch(err) {
-                    showToast("Transfer interrupted.", "rose");
-                    preservePartialState();
-                    abortTransfer();
-                    releaseWakeLock();
-                    return;
                 }
             }
 
