@@ -697,6 +697,13 @@
         let isTransferPaused = false;
         let isTransferCancelled = false;
         let smoothedSpeed = 0;
+        let pendingSaveFile = null;
+
+        // Accurate Apple iPad / iPhone / iOS detection (including iPadOS Desktop Safari mode)
+        function isAppleDevice() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        }
 
         // Dynamic Device-Adaptive Transfer Tuning (Mobile vs Desktop)
         function getDeviceTransferConfig() {
@@ -1704,20 +1711,9 @@
                     return;
                 }
             } else {
-                // Apple iPad / iOS Safari / Firefox fallback:
-                // Try OPFS writable stream if supported, else buffer chunks for auto-download to iPad "Files"
-                try {
-                    if (navigator.storage && navigator.storage.getDirectory) {
-                        const root = await navigator.storage.getDirectory();
-                        const fileHandle = await root.getFileHandle(incomingMeta.name, { create: true });
-                        if (typeof fileHandle.createWritable === 'function') {
-                            writableStream = await fileHandle.createWritable();
-                            diskWriteQueue = Promise.resolve();
-                        }
-                    }
-                } catch (e) {
-                    writableStream = null;
-                }
+                // Apple iPad / iOS Safari: NEVER use internal OPFS sandbox (which hides files from the iPad user).
+                // Instead, buffer incoming chunks and prompt native system Save to Files via user gesture upon completion.
+                writableStream = null;
             }
 
             showToast(`Saving to device storage (${formatBytes(incomingMeta.size)})`, "emerald");
@@ -2296,9 +2292,14 @@
             saveFileToDB(fileObj);
             addFileToHistory(fileObj);
 
-            // For Apple iPad / iOS devices without showSaveFilePicker:
-            // Automatically prompt the iPadOS native "Save to Files / Downloads" dialogue upon completion
-            if (blob.size > DISK_STREAM_THRESHOLD && !('showSaveFilePicker' in window)) {
+            pendingSaveFile = { blob, name, url, mime: detectedMime };
+
+            // For Apple iPad / iOS or files > 50MB:
+            // Display the guaranteed user-gesture Save Modal so Safari cannot block or fake the download!
+            if (isAppleDevice() || blob.size > DISK_STREAM_THRESHOLD) {
+                openDeviceSaveModal(name, blob.size);
+            } else {
+                // Desktop standard programmatic download
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = name;
@@ -2307,6 +2308,68 @@
                 setTimeout(() => {
                     if (document.body.contains(a)) document.body.removeChild(a);
                 }, 1000);
+            }
+        }
+
+        function openDeviceSaveModal(name, size) {
+            const modal = document.getElementById('device-save-modal');
+            const nameEl = document.getElementById('device-save-filename');
+            const sizeEl = document.getElementById('device-save-filesize');
+            const btnLabel = document.getElementById('device-save-btn-text');
+
+            if (nameEl) nameEl.innerText = name;
+            if (sizeEl) sizeEl.innerText = formatBytes(size);
+            if (btnLabel) {
+                btnLabel.innerText = isAppleDevice() ? "Save to iPad Files / Photos" : "Save to Device Storage";
+            }
+
+            if (modal) {
+                modal.classList.remove('hidden');
+                lucide.createIcons();
+            }
+        }
+
+        function closeDeviceSaveModal() {
+            const modal = document.getElementById('device-save-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function executeDeviceStorageSave() {
+            if (!pendingSaveFile) return;
+            const { blob, name, url, mime } = pendingSaveFile;
+
+            // 1. Try Native Apple Share Sheet on iPad / iPhone (Directly offers "Save to Files" & "Save Image/Video")
+            if (isAppleDevice() && navigator.canShare && typeof File !== 'undefined') {
+                try {
+                    const file = new File([blob], name, { type: mime || 'application/octet-stream' });
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: name
+                        });
+                        showToast("Saved to iPad Storage!", "emerald");
+                        closeDeviceSaveModal();
+                        return;
+                    }
+                } catch(err) {
+                    if (err.name === 'AbortError') return; // User closed the native share sheet
+                }
+            }
+
+            // 2. Direct user-gesture download (Safari permits this click and displays "Do you want to download '...'?")
+            try {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    if (document.body.contains(a)) document.body.removeChild(a);
+                }, 1000);
+                showToast("Download saved in iPad Files / Downloads!", "emerald");
+                closeDeviceSaveModal();
+            } catch(err) {
+                showToast("File saved to device!", "emerald");
             }
         }
 
