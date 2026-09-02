@@ -665,6 +665,34 @@
         </div>
     </div>
 
+    <!-- Device Save Modal (Crucial for Apple iPad / iOS & Large File Direct Save) -->
+    <div id="device-save-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-panel max-w-sm w-full rounded-3xl p-6 space-y-4 text-center shadow-2xl relative border border-lime-500/40">
+            <div class="w-16 h-16 mx-auto bg-gradient-to-tr from-lime-500 to-emerald-500 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-lime-500/30 animate-pulse">
+                <i data-lucide="check-circle-2" class="w-8 h-8 text-white"></i>
+            </div>
+            <div>
+                <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider border border-emerald-500/30">Transfer 100% Complete</span>
+                <h3 id="device-save-filename" class="text-sm font-extrabold text-slate-900 dark:text-white mt-2 truncate">file</h3>
+                <p id="device-save-filesize" class="text-xs font-mono text-slate-500 dark:text-slate-400 font-bold mt-0.5">0 MB</p>
+            </div>
+
+            <div class="space-y-2 pt-2">
+                <button id="device-save-btn" onclick="executeDeviceStorageSave()" class="w-full theme-accent-btn py-3.5 rounded-2xl text-xs font-black transition active:scale-95 shadow-lg flex items-center justify-center gap-2">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span id="device-save-btn-text">Save to Device / Files</span>
+                </button>
+                <button id="device-share-btn" onclick="executeNativeShare()" class="w-full glass-panel hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 py-2.5 rounded-2xl text-xs font-extrabold border transition flex items-center justify-center gap-2">
+                    <i data-lucide="share" class="w-4 h-4 text-lime-500"></i>
+                    <span>Share / Save to Photos / Files</span>
+                </button>
+                <button onclick="closeDeviceSaveModal()" class="w-full py-2 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition">
+                    Done (Stored in Files & History)
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Media Preview Modal -->
     <div id="preview-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
         <div class="glass-panel max-w-lg w-full rounded-3xl p-5 space-y-3 relative shadow-2xl border">
@@ -1546,6 +1574,19 @@
             else if (msg.type === 'end') {
                 handleTransferEnd();
             }
+            else if (msg.type === 'file_saved') {
+                const fileLabel = document.getElementById('file-info-label');
+                if (fileLabel) fileLabel.innerText = `Completed & Saved!`;
+                const etaLabel = document.getElementById('eta-label');
+                if (etaLabel) etaLabel.innerText = "Completed";
+                const dirBadge = document.getElementById('transfer-direction-badge');
+                if (dirBadge) {
+                    dirBadge.innerText = "Finished";
+                    dirBadge.className = "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0";
+                }
+                showToast(`File saved on receiver device!`, "emerald");
+                hideProgressUI(false);
+            }
         }
 
         function finalizeConnection(peerID, peerName) {
@@ -1771,8 +1812,12 @@
                     ? "px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 flex items-center gap-1 text-[10px] font-extrabold transition active:scale-95 shadow"
                     : "px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center gap-1 text-[10px] font-extrabold transition active:scale-95";
             }
-            if (isPaused && etaLabel) {
-                etaLabel.innerText = "Paused";
+            if (etaLabel) {
+                if (isPaused) {
+                    etaLabel.innerText = "Paused";
+                } else if (etaLabel.innerText === "Paused") {
+                    etaLabel.innerText = "Resuming...";
+                }
             }
             lucide.createIcons();
         }
@@ -1814,17 +1859,24 @@
         async function handleTransferEnd() {
             playChime('complete');
             releaseWakeLock();
+
+            if (!incomingMeta) return;
+            const meta = { ...incomingMeta };
+            const chunksToSave = [...receivedChunks];
             
             const elapsedSec = Math.max(0.1, (performance.now() - transferStartTime) / 1000);
-            const avgSpeed = incomingMeta ? formatSpeed(incomingMeta.size / elapsedSec) : '';
+            const avgSpeed = formatSpeed(meta.size / elapsedSec);
 
-            if (incomingMeta) {
-                updateProgressUI(incomingMeta.size, incomingMeta.size);
+            updateProgressUI(meta.size, meta.size);
+
+            if (meta.fileId) {
+                delete activePartialTransfers[meta.fileId];
+                removePartialFromDB(meta.fileId);
             }
 
-            if (incomingMeta && incomingMeta.fileId) {
-                delete activePartialTransfers[incomingMeta.fileId];
-                removePartialFromDB(incomingMeta.fileId);
+            // Always acknowledge sender immediately so sender's progress card marks as completed
+            if (activeDataConn && activeDataConn.open) {
+                sendControlMessage(activeDataConn, { type: 'file_saved', name: meta.name });
             }
 
             if (writableStream) {
@@ -1833,9 +1885,10 @@
                     await writableStream.close();
                 } catch(e) {}
                 writableStream = null;
+
                 const fileObj = { 
-                    name: incomingMeta.name, 
-                    size: incomingMeta.size, 
+                    name: meta.name, 
+                    size: meta.size, 
                     isDiskSaved: true, 
                     isSent: false, 
                     transferSpeed: avgSpeed,
@@ -1843,15 +1896,18 @@
                 };
                 saveFileToDB(fileObj);
                 addFileToHistory(fileObj);
-            } else if (incomingMeta) {
-                saveReceivedFile(receivedChunks, incomingMeta.name, incomingMeta.mime, avgSpeed);
+
+                // Show confirmation modal for stream-to-disk
+                openDeviceSaveModal(meta.name, meta.size, true);
+            } else {
+                saveReceivedFile(chunksToSave, meta.name, meta.mime, avgSpeed);
             }
 
-            showToast(`Received ${incomingMeta ? incomingMeta.name : 'file'} at ${avgSpeed}!`, "emerald");
+            showToast(`Received ${meta.name} at ${avgSpeed}!`, "emerald");
 
             const fileLabel = document.getElementById('file-info-label');
-            if (fileLabel && incomingMeta) {
-                fileLabel.innerText = `Completed (${avgSpeed})`;
+            if (fileLabel) {
+                fileLabel.innerText = `Completed & Saved (${avgSpeed})`;
             }
 
             incomingMeta = null;
@@ -2077,6 +2133,13 @@
             }
 
             updateProgressUI(file.size, file.size);
+            const etaLabel = document.getElementById('eta-label');
+            if (etaLabel) etaLabel.innerText = "Completed";
+            const dirBadge = document.getElementById('transfer-direction-badge');
+            if (dirBadge) {
+                dirBadge.innerText = "Completed";
+                dirBadge.className = "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0";
+            }
 
             try {
                 sendControlMessage(activeDataConn, { type: 'end' });
@@ -2089,11 +2152,14 @@
             const avgSpeed = formatSpeed(file.size / elapsedSec);
             showToast(`${file.name} sent at ${avgSpeed}!`, "emerald");
 
+            const fileLabel = document.getElementById('file-info-label');
+            if (fileLabel) fileLabel.innerText = `Sent (${avgSpeed})`;
+
             const fileObj = {
                 name: file.name,
                 size: file.size,
                 mime: file.type || detectMimeByName(file.name),
-                blob: file,
+                blob: file.size < 25 * 1024 * 1024 ? file : null, // Protect IndexedDB quota for files > 25MB
                 url: URL.createObjectURL(file),
                 isSent: true,
                 transferSpeed: avgSpeed,
@@ -2282,7 +2348,7 @@
                 name: name,
                 size: blob.size,
                 mime: detectedMime,
-                blob: blob,
+                blob: blob.size < 25 * 1024 * 1024 ? blob : null, // Prevent mobile IndexedDB quota crash on large files
                 url: url,
                 isSent: false,
                 transferSpeed: transferSpeed,
@@ -2294,33 +2360,52 @@
 
             pendingSaveFile = { blob, name, url, mime: detectedMime };
 
-            // For Apple iPad / iOS or files > 50MB:
-            // Display the guaranteed user-gesture Save Modal so Safari cannot block or fake the download!
-            if (isAppleDevice() || blob.size > DISK_STREAM_THRESHOLD) {
-                openDeviceSaveModal(name, blob.size);
-            } else {
-                // Desktop standard programmatic download
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = name;
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(() => {
-                    if (document.body.contains(a)) document.body.removeChild(a);
-                }, 1000);
+            // Send acknowledgment back to sender so sender card marks as Completed & Saved
+            if (activeDataConn && activeDataConn.open) {
+                sendControlMessage(activeDataConn, { type: 'file_saved', name: name });
+            }
+
+            // Open universal Save Modal on all devices
+            openDeviceSaveModal(name, blob.size, false);
+
+            // Trigger anchor download on desktop browsers with user-action permission
+            if (!isMobileDevice() && !isAppleDevice()) {
+                try {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = name;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        if (document.body.contains(a)) document.body.removeChild(a);
+                    }, 1000);
+                } catch(e) {}
             }
         }
 
-        function openDeviceSaveModal(name, size) {
+        function openDeviceSaveModal(name, size, isAlreadySavedToDisk = false) {
             const modal = document.getElementById('device-save-modal');
             const nameEl = document.getElementById('device-save-filename');
             const sizeEl = document.getElementById('device-save-filesize');
             const btnLabel = document.getElementById('device-save-btn-text');
+            const subtext = document.getElementById('device-save-subtext');
+            const badge = document.getElementById('device-save-status-badge');
 
             if (nameEl) nameEl.innerText = name;
             if (sizeEl) sizeEl.innerText = formatBytes(size);
-            if (btnLabel) {
-                btnLabel.innerText = isAppleDevice() ? "Save to iPad Files / Photos" : "Save to Device Storage";
+
+            if (isAlreadySavedToDisk) {
+                if (badge) badge.innerText = "Saved to Storage";
+                if (subtext) subtext.innerText = "File was written directly to your chosen folder.";
+                if (btnLabel) btnLabel.innerText = "Download Additional Copy";
+            } else {
+                if (badge) badge.innerText = "Transfer 100% Complete";
+                if (subtext) subtext.innerText = isAppleDevice() 
+                    ? "Tap below to save to iPad/iPhone Files or Photos."
+                    : "Tap below to save to your device Downloads folder.";
+                if (btnLabel) btnLabel.innerText = isAppleDevice() 
+                    ? "Save to Files / Photos" 
+                    : "Save to Downloads";
             }
 
             if (modal) {
@@ -2338,8 +2423,8 @@
             if (!pendingSaveFile) return;
             const { blob, name, url, mime } = pendingSaveFile;
 
-            // 1. Try Native Apple Share Sheet on iPad / iPhone (Directly offers "Save to Files" & "Save Image/Video")
-            if (isAppleDevice() && navigator.canShare && typeof File !== 'undefined') {
+            // Universal Web Share: Supported on Android, iOS/iPadOS, and macOS for direct saving
+            if (isMobileDevice() && navigator.canShare && typeof File !== 'undefined') {
                 try {
                     const file = new File([blob], name, { type: mime || 'application/octet-stream' });
                     if (navigator.canShare({ files: [file] })) {
@@ -2347,16 +2432,16 @@
                             files: [file],
                             title: name
                         });
-                        showToast("Saved to iPad Storage!", "emerald");
+                        showToast("Saved to Device Storage!", "emerald");
                         closeDeviceSaveModal();
                         return;
                     }
                 } catch(err) {
-                    if (err.name === 'AbortError') return; // User closed the native share sheet
+                    if (err.name === 'AbortError') return;
                 }
             }
 
-            // 2. Direct user-gesture download (Safari permits this click and displays "Do you want to download '...'?")
+            // Direct user-gesture download (Works across Chrome, Edge, Safari, Firefox)
             try {
                 const a = document.createElement('a');
                 a.href = url;
@@ -2366,11 +2451,44 @@
                 setTimeout(() => {
                     if (document.body.contains(a)) document.body.removeChild(a);
                 }, 1000);
-                showToast("Download saved in iPad Files / Downloads!", "emerald");
+                showToast("Saved to Downloads!", "emerald");
                 closeDeviceSaveModal();
             } catch(err) {
-                showToast("File saved to device!", "emerald");
+                window.open(url, '_blank');
+                showToast("File opened in new tab", "emerald");
+                closeDeviceSaveModal();
             }
+        }
+
+        async function executeNativeShare() {
+            if (!pendingSaveFile) return;
+            const { blob, name, mime, url } = pendingSaveFile;
+
+            if (navigator.share) {
+                try {
+                    if (typeof File !== 'undefined') {
+                        const file = new File([blob], name, { type: mime || 'application/octet-stream' });
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                files: [file],
+                                title: name
+                            });
+                            showToast("Shared successfully!", "emerald");
+                            closeDeviceSaveModal();
+                            return;
+                        }
+                    }
+                    await navigator.share({
+                        title: name,
+                        url: url
+                    });
+                    closeDeviceSaveModal();
+                    return;
+                } catch(e) {
+                    if (e.name === 'AbortError') return;
+                }
+            }
+            executeDeviceStorageSave();
         }
 
         async function downloadSelectedAsZip() {
