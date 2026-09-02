@@ -674,6 +674,11 @@
         const DISK_STREAM_THRESHOLD = 50 * 1024 * 1024; // 50MB Direct Storage threshold
         const PEER_PREFIX = "ls-lan-v6-";
 
+        // Transfer control flags
+        let isTransferPaused = false;
+        let isTransferCancelled = false;
+        let smoothedSpeed = 0;
+
         // Dynamic Device-Adaptive Transfer Tuning (Mobile vs Desktop)
         function getDeviceTransferConfig() {
             const mobile = isMobileDevice();
@@ -1462,6 +1467,25 @@
                 preservePartialState();
                 disconnectPeer(false);
             }
+            else if (msg.type === 'transfer_pause') {
+                isTransferPaused = true;
+                updatePauseUI(true);
+                showToast("Transfer paused by remote peer", "amber");
+            }
+            else if (msg.type === 'transfer_resume') {
+                isTransferPaused = false;
+                updatePauseUI(false);
+                showToast("Transfer resumed by remote peer", "lime");
+            }
+            else if (msg.type === 'transfer_cancel') {
+                isTransferCancelled = true;
+                showToast("Transfer was stopped by remote peer", "rose");
+                abortTransfer();
+            }
+            else if (msg.type === 'reject_offer') {
+                showToast("File transfer was declined by receiver", "rose");
+                abortTransfer();
+            }
             else if (msg.type === 'text_snippet') {
                 playChime('text');
                 renderTextSnippet(msg.text, false, true);
@@ -1598,6 +1622,9 @@
         async function handleFileOffer(data) {
             const fileId = `${data.name}_${data.size}`;
             incomingMeta = { ...data, fileId };
+            isTransferPaused = false;
+            isTransferCancelled = false;
+            updatePauseUI(false);
             await requestWakeLock();
 
             const partial = activePartialTransfers[fileId];
@@ -1620,16 +1647,37 @@
                 receivedSize = 0;
                 diskWriteQueue = Promise.resolve();
 
-                // If file > 50MB and File System Access API is supported, prompt save location FIRST
-                if (data.size > DISK_STREAM_THRESHOLD && 'showSaveFilePicker' in window) {
-                    const diskPrompt = document.getElementById('disk-prompt-card');
-                    const diskFileInfo = document.getElementById('disk-prompt-file-info');
-                    if (diskFileInfo) diskFileInfo.innerText = `${data.name} (${formatBytes(data.size)})`;
-                    if (diskPrompt) diskPrompt.classList.remove('hidden');
-                    // DO NOT send 'accept' yet. The sender will wait until the disk stream is ready!
-                    showToast(`Large file: choose save location to begin receiving`, "lime");
+                // STRICT: Files > 50 MB MUST NOT use RAM. Direct storage writing only.
+                if (data.size > DISK_STREAM_THRESHOLD) {
+                    if ('showSaveFilePicker' in window) {
+                        const diskPrompt = document.getElementById('disk-prompt-card');
+                        const diskFileInfo = document.getElementById('disk-prompt-file-info');
+                        if (diskFileInfo) diskFileInfo.innerText = `${data.name} (${formatBytes(data.size)})`;
+                        if (diskPrompt) diskPrompt.classList.remove('hidden');
+                        showToast(`File exceeds 50 MB: select storage location to receive`, "lime");
+                    } else if (navigator.storage && navigator.storage.getDirectory) {
+                        // Origin Private File System (OPFS) fallback for mobile browsers (Disk Storage, 0 RAM)
+                        try {
+                            const root = await navigator.storage.getDirectory();
+                            const fileHandle = await root.getFileHandle(data.name, { create: true });
+                            writableStream = await fileHandle.createWritable();
+                            diskWriteQueue = Promise.resolve();
+                            showToast(`Writing strictly to device storage (${formatBytes(data.size)})`, "emerald");
+                            showProgressUI(data.name, false, data.size);
+                            updateProgressUI(0, data.size);
+                            if (activeDataConn && activeDataConn.open) {
+                                sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
+                            }
+                        } catch (err) {
+                            showToast("Direct storage required for files > 50 MB", "rose");
+                            sendControlMessage(activeDataConn, { type: 'reject_offer', reason: 'storage_unavailable' });
+                        }
+                    } else {
+                        showToast("Device storage API required for files > 50 MB", "rose");
+                        sendControlMessage(activeDataConn, { type: 'reject_offer', reason: 'storage_unavailable' });
+                    }
                 } else {
-                    // Under 50MB or mobile: accept immediately into RAM
+                    // Under 50MB: safe to accept in-memory
                     if (activeDataConn && activeDataConn.open) {
                         sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
                     }
@@ -1655,18 +1703,18 @@
                     showProgressUI(incomingMeta.name, false, incomingMeta.size);
                     updateProgressUI(0, incomingMeta.size);
 
-                    // NOW signal sender to start streaming chunks directly to disk!
+                    // Signal sender to start streaming chunks directly to storage
                     if (activeDataConn && activeDataConn.open) {
                         sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
                     }
                 }
             } catch (err) {
-                // If user cancels file picker dialog, gracefully fall back to RAM
-                skipDiskAndReceiveInRAM();
+                // If user cancels file picker dialog, strictly decline transfer (no RAM fallback for >50MB)
+                declineDiskTransfer();
             }
         }
 
-        function skipDiskAndReceiveInRAM() {
+        function declineDiskTransfer() {
             const diskPrompt = document.getElementById('disk-prompt-card');
             if (diskPrompt) diskPrompt.classList.add('hidden');
 
@@ -1674,13 +1722,53 @@
             receivedChunks = [];
             receivedSize = 0;
 
-            if (incomingMeta) {
-                showProgressUI(incomingMeta.name, false, incomingMeta.size);
-                updateProgressUI(0, incomingMeta.size);
-                if (activeDataConn && activeDataConn.open) {
-                    sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
-                }
+            if (incomingMeta && activeDataConn && activeDataConn.open) {
+                sendControlMessage(activeDataConn, { type: 'reject_offer', reason: 'declined_storage' });
             }
+            incomingMeta = null;
+            showToast("Transfer cancelled: files >50 MB strictly require device storage.", "rose");
+            hideProgressUI(true);
+        }
+
+        function toggleTransferPause() {
+            if (!isTransferring && !incomingMeta) return;
+            isTransferPaused = !isTransferPaused;
+            updatePauseUI(isTransferPaused);
+
+            if (activeDataConn && activeDataConn.open) {
+                sendControlMessage(activeDataConn, { 
+                    type: isTransferPaused ? 'transfer_pause' : 'transfer_resume' 
+                });
+            }
+            showToast(isTransferPaused ? "Transfer Paused" : "Transfer Resumed", isTransferPaused ? "amber" : "emerald");
+        }
+
+        function updatePauseUI(isPaused) {
+            const label = document.getElementById('pause-btn-label');
+            const icon = document.getElementById('pause-btn-icon');
+            const etaLabel = document.getElementById('eta-label');
+
+            if (label) label.innerText = isPaused ? "Resume" : "Pause";
+            if (icon) {
+                icon.setAttribute('data-lucide', isPaused ? 'play' : 'pause');
+                icon.className = isPaused ? "w-3.5 h-3.5 text-emerald-500" : "w-3.5 h-3.5 text-amber-500";
+            }
+            if (isPaused && etaLabel) {
+                etaLabel.innerText = "Paused";
+            }
+            lucide.createIcons();
+        }
+
+        function cancelCurrentTransfer() {
+            isTransferCancelled = true;
+            isTransferPaused = false;
+
+            if (activeDataConn && activeDataConn.open) {
+                sendControlMessage(activeDataConn, { type: 'transfer_cancel' });
+            }
+
+            showToast("Transfer stopped", "rose");
+            abortTransfer();
         }
 
         async function handleIncomingChunk(chunkBuffer) {
@@ -1818,6 +1906,10 @@
             }
 
             isTransferring = true;
+            isTransferPaused = false;
+            isTransferCancelled = false;
+            updatePauseUI(false);
+
             currentTransferFile = pendingFileQueue.shift();
             lastAttemptedFile = currentTransferFile;
             
@@ -1843,6 +1935,10 @@
             const config = getDeviceTransferConfig();
             const { chunkSize, maxBuffer, lowBuffer, blockReadSize, isMobile } = config;
 
+            isTransferPaused = false;
+            isTransferCancelled = false;
+            updatePauseUI(false);
+
             updateChunkBadge(chunkSize, isMobile);
             showProgressUI(file.name, true, file.size);
             updateProgressUI(resumeOffset, file.size);
@@ -1856,13 +1952,23 @@
                 }
             }
 
-            // High-Speed Block Prefetching loop with device-tailored parameters
+            // High-Speed Block Prefetching loop with device-tailored parameters & pause/stop capability
             while (offset < file.size) {
-                if (!isConnected || !activeDataConn || !activeDataConn.open) {
+                if (!isConnected || !activeDataConn || !activeDataConn.open || isTransferCancelled) {
                     preservePartialState();
                     abortTransfer();
                     releaseWakeLock();
                     return;
+                }
+
+                // Pause check loop
+                while (isTransferPaused) {
+                    await new Promise(r => setTimeout(r, 150));
+                    if (!isConnected || isTransferCancelled) {
+                        abortTransfer();
+                        releaseWakeLock();
+                        return;
+                    }
                 }
 
                 // Check and wait for backpressure drain before memory block read
@@ -1886,11 +1992,21 @@
                 // Stream safe-sized sub-chunks directly from memory into socket
                 let blockOffset = 0;
                 while (blockOffset < blockBuffer.byteLength) {
-                    if (!isConnected || !activeDataConn || !activeDataConn.open) {
+                    if (!isConnected || !activeDataConn || !activeDataConn.open || isTransferCancelled) {
                         preservePartialState();
                         abortTransfer();
                         releaseWakeLock();
                         return;
+                    }
+
+                    // Intra-block pause check
+                    while (isTransferPaused) {
+                        await new Promise(r => setTimeout(r, 150));
+                        if (!isConnected || isTransferCancelled) {
+                            abortTransfer();
+                            releaseWakeLock();
+                            return;
+                        }
                     }
 
                     // Intra-block backpressure check
@@ -1926,18 +2042,23 @@
             if (rawDC && rawDC.bufferedAmount > 0) {
                 await new Promise(resolve => {
                     const drainTimer = setInterval(() => {
-                        if (!rawDC || rawDC.bufferedAmount === 0) {
+                        if (!rawDC || rawDC.bufferedAmount === 0 || isTransferCancelled) {
                             clearInterval(drainTimer);
                             resolve();
                         }
                     }, 15);
 
-                    // Maximum 3s flush guard
                     setTimeout(() => {
                         clearInterval(drainTimer);
                         resolve();
                     }, 3000);
                 });
+            }
+
+            if (isTransferCancelled) {
+                abortTransfer();
+                releaseWakeLock();
+                return;
             }
 
             updateProgressUI(file.size, file.size);
@@ -1977,6 +2098,12 @@
             isTransferring = false;
             currentTransferFile = null;
             lastAttemptedFile = null;
+            isTransferPaused = false;
+            isTransferCancelled = false;
+            if (writableStream) {
+                try { writableStream.abort(); } catch(e) {}
+                writableStream = null;
+            }
             releaseWakeLock();
             hideProgressUI(true);
         }
@@ -2033,44 +2160,65 @@
 
             transferStartTime = performance.now();
             transferPeakSpeed = 0;
+            smoothedSpeed = 0;
             lastTime = performance.now();
             lastBytes = 0;
             speedHistory.fill(0);
 
             const etaLabel = document.getElementById('eta-label');
-            if (etaLabel) etaLabel.innerText = `ETA: Calculating...`;
+            if (etaLabel) etaLabel.innerText = `Calculating...`;
 
             drawSpeedChart();
         }
 
         function updateProgressUI(current, total) {
+            if (isTransferPaused) return;
+
             const now = performance.now();
             const timeDiff = (now - lastTime) / 1000;
 
             if (timeDiff >= 0.08) {
                 const bytesDiff = Math.max(0, current - lastBytes);
-                const speedBytesPerSec = bytesDiff / timeDiff;
+                const instantaneousSpeed = bytesDiff / timeDiff;
 
-                if (speedBytesPerSec > transferPeakSpeed) {
-                    transferPeakSpeed = speedBytesPerSec;
+                // Smooth exponential moving average speed to prevent ETA jumping
+                smoothedSpeed = smoothedSpeed === 0 
+                    ? instantaneousSpeed 
+                    : (smoothedSpeed * 0.75 + instantaneousSpeed * 0.25);
+
+                if (instantaneousSpeed > transferPeakSpeed) {
+                    transferPeakSpeed = instantaneousSpeed;
                 }
 
                 const speedEl = document.getElementById('speed-label');
-                if (speedEl) speedEl.innerText = formatSpeed(speedBytesPerSec);
+                if (speedEl) speedEl.innerText = formatSpeed(instantaneousSpeed);
 
-                // Calculate ETA
+                // Precise Remaining Time (ETA) calculation
                 const remainingBytes = Math.max(0, total - current);
                 const etaLabel = document.getElementById('eta-label');
                 if (etaLabel) {
-                    if (speedBytesPerSec > 1024) {
-                        const etaSec = Math.ceil(remainingBytes / speedBytesPerSec);
-                        etaLabel.innerText = etaSec > 60 ? `ETA: ${Math.floor(etaSec/60)}m ${etaSec%60}s` : `ETA: ${etaSec}s`;
+                    if (current >= total) {
+                        etaLabel.innerText = "Completed";
+                    } else if (smoothedSpeed > 1024) {
+                        const remainingSec = Math.ceil(remainingBytes / smoothedSpeed);
+                        if (remainingSec >= 3600) {
+                            const hrs = Math.floor(remainingSec / 3600);
+                            const mins = Math.floor((remainingSec % 3600) / 60);
+                            const secs = remainingSec % 60;
+                            etaLabel.innerText = `Remaining: ${hrs}h ${mins}m ${secs}s`;
+                        } else if (remainingSec >= 60) {
+                            const mins = Math.floor(remainingSec / 60);
+                            const secs = remainingSec % 60;
+                            etaLabel.innerText = `Remaining: ${mins}m ${secs}s`;
+                        } else {
+                            etaLabel.innerText = `Remaining: ${remainingSec}s`;
+                        }
                     } else {
-                        etaLabel.innerText = current >= total ? "Done" : "ETA: --";
+                        etaLabel.innerText = `Calculating...`;
                     }
                 }
 
-                speedHistory.push(speedBytesPerSec);
+                speedHistory.push(instantaneousSpeed);
                 speedHistory.shift();
                 drawSpeedChart();
 
