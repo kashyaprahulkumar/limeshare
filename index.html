@@ -3,37 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LimeShare • Private Private Local Share</title>
+    <title>LimeShare • Wi-Fi Direct Peer Share</title>
     
-    <!-- SEO & Metadata -->
-    <meta name="description" content="LimeShare is a fast, secure local Wi-Fi peer-to-peer file sharing and clipboard tool. Direct device-to-device transfer with zero cloud storage.">
-    <meta name="keywords" content="local wifi file share, P2P file transfer, airdrop alternative, wifi drop, direct device transfer, local network share">
+    <!-- Primary SEO & Meta Tags -->
+    <meta name="description" content="LimeShare is a private, lightning-fast peer-to-peer (P2P) local Wi-Fi file sharing tool. Direct device-to-device file transfer with zero cloud storage.">
+    <meta name="keywords" content="P2P file transfer, local wifi share, direct drop, AirDrop for Android and Windows, encrypted peer sharing, no cloud transfer">
     <meta name="author" content="LimeShare">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#84cc16">
 
-    <!-- Open Graph -->
+    <!-- Open Graph Tags -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="LimeShare • Private Private Local Share">
-    <meta property="og:description" content="Fast, private device-to-device local Wi-Fi file sharing and clipboard sync. Zero cloud storage.">
-    <meta property="og:image" content="https://placehold.co/1200x630/84cc16/ffffff?text=LimeShare+Local+WiFi">
+    <meta property="og:title" content="LimeShare • Fast Local P2P Wi-Fi Share">
+    <meta property="og:description" content="Share unlimited files and folders directly across your local Wi-Fi at maximum speeds. No file size limits, zero cloud storage.">
+    <meta property="og:image" content="https://placehold.co/1200x630/84cc16/ffffff?text=LimeShare+Direct+Drop">
 
     <!-- Web App Manifest for PWA Support -->
     <link rel="manifest" id="pwa-manifest-link">
 
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS for modern responsive styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class'
         }
     </script>
-
-    <!-- External Libraries -->
+    <!-- PeerJS for WebRTC Direct P2P signaling -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- QRCode.js for peer device code scanning -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Html5-QRCode for Webcam QR Scanner -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- JSZip for in-browser file compression and ZIP archiving -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- MQTT for Local Subnet Mesh Discovery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
@@ -46,7 +52,7 @@
             --accent-secondary: #22c55e;
             --accent-dark: #15803d;
             --card-bg: rgba(255, 255, 255, 0.92);
-            --card-border: rgba(226, 232, 240, 0.85);
+            --card-border: rgba(226, 232, 240, 0.8);
             --text-main: #0f172a;
             --text-sub: #64748b;
             --node-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.25);
@@ -59,8 +65,8 @@
             --accent-primary: #a3e635;
             --accent-secondary: #4ade80;
             --accent-dark: #16a34a;
-            --card-bg: rgba(15, 23, 18, 0.9);
-            --card-border: rgba(34, 197, 94, 0.22);
+            --card-bg: rgba(15, 23, 18, 0.88);
+            --card-border: rgba(34, 197, 94, 0.2);
             --text-main: #f0fdf4;
             --text-sub: #86efac;
             --node-shadow: 0 10px 30px -5px rgba(74, 222, 128, 0.3);
@@ -73,7 +79,7 @@
             --accent-primary: #38bdf8;
             --accent-secondary: #818cf8;
             --accent-dark: #0284c7;
-            --card-bg: rgba(15, 23, 42, 0.92);
+            --card-bg: rgba(15, 23, 42, 0.9);
             --card-border: rgba(56, 189, 248, 0.25);
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
@@ -92,12 +98,11 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* Radar Visualizer Container */
         .radar-container {
             position: relative;
             width: 100%;
             max-width: 800px;
-            height: 480px;
+            height: 520px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -112,24 +117,25 @@
             transition: all 0.5s ease;
         }
 
-        .radar-circle-1 { width: 200px; height: 200px; }
-        .radar-circle-2 { width: 340px; height: 340px; }
-        .radar-circle-3 { width: 480px; height: 480px; }
-        .radar-circle-4 { width: 640px; height: 640px; }
+        .radar-circle-1 { width: 220px; height: 220px; }
+        .radar-circle-2 { width: 380px; height: 380px; }
+        .radar-circle-3 { width: 540px; height: 540px; }
+        .radar-circle-4 { width: 700px; height: 700px; }
 
         @media (max-width: 767px) {
             .radar-container {
-                height: 350px;
+                height: 360px;
                 width: 100%;
                 max-width: 100vw;
+                overflow: visible;
             }
             .radar-circle-1 { width: 130px; height: 130px; }
             .radar-circle-2 { width: 210px; height: 210px; }
             .radar-circle-3 { width: 280px; height: 280px; }
             .radar-circle-4 { width: 340px; height: 340px; max-width: 90vw; max-height: 90vw; }
-            .radar-pulse { width: 240px; height: 240px; max-width: 78vw; max-height: 78vw; }
-            .upload-circle-btn { width: 130px; height: 130px; }
-            .upload-circle-btn h2 { font-size: 0.85rem; }
+            .radar-pulse { width: 250px; height: 250px; max-width: 78vw; max-height: 78vw; }
+            .upload-circle-btn { width: 135px; height: 135px; }
+            .upload-circle-btn h2 { font-size: 0.875rem; }
         }
 
         @keyframes radarSweep {
@@ -140,8 +146,8 @@
 
         .radar-pulse {
             position: absolute;
-            width: 380px;
-            height: 380px;
+            width: 400px;
+            height: 400px;
             border-radius: 50%;
             border: 1.5px solid var(--accent-primary);
             animation: radarSweep 4s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
@@ -152,11 +158,10 @@
             animation-delay: -2s;
         }
 
-        /* Upload Button */
         .upload-circle-btn {
             position: relative;
-            width: 165px;
-            height: 165px;
+            width: 175px;
+            height: 175px;
             border-radius: 50%;
             background: white;
             box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08), 0 0 0 8px rgba(132, 204, 22, 0.15);
@@ -192,6 +197,10 @@
             box-shadow: 0 25px 50px -12px var(--node-shadow), 0 0 0 12px rgba(132, 204, 22, 0.25);
         }
 
+        .upload-circle-btn:hover .upload-circle-ring {
+            transform: rotate(180deg);
+        }
+
         .glass-panel {
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -215,74 +224,29 @@
             transform: scale(1.12) !important;
             box-shadow: 0 0 0 16px rgba(132, 204, 22, 0.35) !important;
         }
-
-        @keyframes connectingRing {
-            0% { transform: scale(0.9); opacity: 0.9; }
-            100% { transform: scale(1.5); opacity: 0; }
-        }
-        .connecting-pulse {
-            animation: connectingRing 1.4s ease-out infinite;
-        }
-
-
-        .chat-bubble {
-            max-width: 82%;
-            position: relative;
-            word-break: break-word;
-        }
-        .chat-bubble.sent { margin-left:auto; }
-        .chat-bubble.received { margin-right:auto; }
-        .chat-meta { font-size:8px; opacity:.65; margin-top:3px; display:flex; gap:5px; align-items:center; }
-        .chat-link { text-decoration:underline; text-underline-offset:2px; }
-        .chat-code { font-family:'JetBrains Mono',monospace; white-space:pre-wrap; background:rgba(0,0,0,.08); border-radius:8px; padding:6px; margin-top:5px; }
-        .chat-reaction { cursor:pointer; border-radius:999px; padding:1px 5px; font-size:11px; border:1px solid rgba(148,163,184,.25); }
-
-        .secure-mode-badge {
-            display:inline-flex;
-            align-items:center;
-            gap:.35rem;
-            padding:.25rem .55rem;
-            border-radius:.55rem;
-            font-size:9px;
-            font-weight:800;
-            letter-spacing:.06em;
-            text-transform:uppercase;
-            background:rgba(16,185,129,.10);
-            border:1px solid rgba(16,185,129,.25);
-        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-lime-500 selection:text-white">
 
-    <div class="w-full max-w-7xl mx-auto px-3 sm:px-6 mt-1">
-        <div class="glass-panel rounded-xl px-3 py-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-            🔒 <span class="text-emerald-600 dark:text-emerald-400">Private pairing only.</span>
-            This public version does not broadcast your device to other website visitors.
-            Connect by scanning a local QR. Internet is not required.
-        </div>
-    </div>
-
-
-    <header class="w-full max-w-7xl mx-auto px-3 sm:px-6 py-3.5 flex items-center justify-between z-30">
-        <!-- Logo & Network Scope -->
+    <header class="w-full max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between z-30">
+        <!-- Brand Logo -->
         <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.reload()">
             <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-lime-400 to-green-600 flex items-center justify-center text-white shadow-lg shadow-lime-500/30">
                 <i data-lucide="wifi" class="w-5 h-5 text-white"></i>
             </div>
             <div>
                 <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-extrabold text-lime-600 bg-lime-500/10 px-1.5 py-0.5 rounded border border-lime-500/30 uppercase tracking-wider">Wi-Fi Direct</span>
-                    <h1 class="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">LimeShare</h1>
+                    <span class="text-xs font-semibold text-lime-600 tracking-wider uppercase">P2P</span>
+                    <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">LimeShare</h1>
                 </div>
-                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Private Peer-to-Peer Drop</p>
-                <span class="secure-mode-badge text-emerald-600 dark:text-emerald-400">🔒 Public Secure Mode</span>
+                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Wi-Fi Direct Peer Drop</p>
             </div>
         </div>
 
-        <!-- Header Controls -->
+        <!-- Header Actions & Controls -->
         <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
-            <!-- 6-Digit Device Code Button -->
-            <button id="connect-device-btn" onclick="openPairingModal()" class="glass-panel px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-1.5 hover:border-lime-500 transition shadow-sm" title="Connect Device via 6-Digit Code / QR">
+            <!-- 6-Digit Device Code Badge -->
+            <button onclick="openPairingModal()" class="glass-panel px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 hover:border-lime-500 transition shadow-sm" title="Your Unique Device Code">
                 <span id="conn-status-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
                 <span id="my-code-display" class="font-mono text-lime-600 dark:text-lime-400 font-extrabold">------</span>
                 <i data-lucide="qr-code" class="w-3.5 h-3.5 text-slate-400"></i>
@@ -294,23 +258,33 @@
                 <span class="hidden md:inline">Install</span>
             </button>
 
-            <!-- Guide Modal Button -->
-            <button onclick="openGuideModal()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="How it Works">
+            <!-- Symbolic Guide Modal Button -->
+            <button onclick="openHowToUseModal()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Visual Guide">
                 <i data-lucide="help-circle" class="w-4 h-4"></i>
             </button>
 
-            <!-- Audio Mute Toggle -->
-            <button id="audio-toggle-btn" onclick="toggleAudioMute()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Toggle Sound">
+            <!-- Mute Audio Toggle -->
+            <button id="audio-toggle-btn" onclick="toggleAudioMute()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Mute/Unmute Audio">
                 <i id="audio-icon-on" data-lucide="volume-2" class="w-4 h-4 text-emerald-500"></i>
                 <i id="audio-icon-off" data-lucide="volume-x" class="w-4 h-4 text-rose-500 hidden"></i>
             </button>
 
-            <!-- Symbolic Theme Toggle Button -->
+            <!-- Anti-Attack Security Shield Toggle -->
+            <div class="hidden sm:flex items-center gap-1.5 glass-panel px-2.5 py-1 rounded-full border text-[11px] font-bold">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i>
+                <span class="text-slate-500 dark:text-slate-400">Shield</span>
+                <label class="relative inline-flex items-center cursor-pointer ml-1">
+                    <input type="checkbox" id="security-require-approval" class="sr-only peer" checked onchange="toggleSecurityMode(this.checked)">
+                    <div class="w-7 h-4 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+            </div>
+
+            <!-- Single Symbolic Theme Toggle Button -->
             <button id="theme-toggle-btn" onclick="cycleTheme()" class="glass-panel p-2 rounded-full border text-slate-700 dark:text-slate-200 hover:text-lime-600 transition active:scale-95 flex items-center justify-center" title="Toggle Theme (Lime / Dark / Cyber)">
                 <i id="theme-icon" data-lucide="sun" class="w-4 h-4 text-lime-500"></i>
             </button>
 
-            <!-- 1-Click Magic Wi-Fi Link Button -->
+            <!-- 1-Click Magic Link Button -->
             <button onclick="copyPairingLink()" class="theme-accent-btn px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow">
                 <i data-lucide="link" class="w-3.5 h-3.5"></i>
                 <span class="hidden sm:inline">Magic Link</span>
@@ -319,64 +293,63 @@
     </header>
 
     <main class="flex-1 flex flex-col items-center justify-center relative px-2 sm:px-4 py-2 my-auto w-full overflow-hidden">
-        
-        <!-- Private P2P Radar Mesh View -->
-        <div class="w-full flex flex-col items-center justify-center">
-            <div class="radar-container">
-                <div class="radar-pulse"></div>
-                <div class="radar-pulse"></div>
+        <div class="radar-container">
+            <div class="radar-pulse"></div>
+            <div class="radar-pulse"></div>
 
-                <div class="radar-circle radar-circle-1"></div>
-                <div class="radar-circle radar-circle-2"></div>
-                <div class="radar-circle radar-circle-3"></div>
-                <div class="radar-circle radar-circle-4"></div>
+            <div class="radar-circle radar-circle-1"></div>
+            <div class="radar-circle radar-circle-2"></div>
+            <div class="radar-circle radar-circle-3"></div>
+            <div class="radar-circle radar-circle-4"></div>
 
-                <!-- Central Upload Hub -->
-                <div class="relative flex flex-col items-center justify-center z-20">
-                    <div id="upload-circle" class="upload-circle-btn group" onclick="triggerFileUpload()">
-                        <div class="upload-circle-ring"></div>
-                        <input type="file" id="file-input" multiple class="hidden">
-                        
-                        <h2 class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight group-hover:text-lime-600 transition">Upload Files</h2>
-                        <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Click or Drop</p>
-                    </div>
-
-                    <!-- Upload Folder Button -->
-                    <div class="mt-4">
-                        <label onclick="handleFolderClick(event)" class="glass-panel hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold px-4 py-1.5 rounded-full border shadow-md flex items-center gap-2 cursor-pointer transition active:scale-95">
-                            <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden" onchange="handleFolderSelect(event)">
-                            <i data-lucide="folder" class="w-3.5 h-3.5 text-lime-600"></i>
-                            <span>Upload Folder</span>
-                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-lime-600"></i>
-                        </label>
-                    </div>
-
-                    <!-- User Node -->
-                    <div class="mt-3 flex flex-col items-center">
-                        <div id="my-avatar-ring" class="w-11 h-11 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow-lg text-slate-800 dark:text-white transition-all">
-                            <i data-lucide="radio" class="w-5 h-5 text-lime-500 animate-pulse"></i>
-                        </div>
-                        <div class="flex items-center gap-1 mt-1 cursor-pointer hover:text-lime-500 transition" onclick="editMyName()" title="Click to edit display name">
-                            <p id="my-name-display" class="text-xs font-extrabold text-slate-800 dark:text-white">You</p>
-                            <i data-lucide="edit-3" class="w-3 h-3 text-slate-400"></i>
-                        </div>
-                        <p id="radar-status-text" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Wi-Fi Ready</p>
-                    </div>
+            <!-- Central Content Focus (Dropzone) -->
+            <div class="relative flex flex-col items-center justify-center z-20">
+                <!-- Central Circular Button -->
+                <div id="upload-circle" class="upload-circle-btn group" onclick="triggerFileUpload()">
+                    <div class="upload-circle-ring"></div>
+                    <input type="file" id="file-input" multiple class="hidden">
+                    
+                    <h2 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight group-hover:text-lime-600 transition">Upload Files</h2>
+                    <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Click or Drop</p>
                 </div>
 
-                <!-- Discovered Peers Layer -->
-                <div id="radar-peers-layer" class="absolute inset-0 pointer-events-none z-30"></div>
+                <!-- Upload Folder Button attached below center -->
+                <div class="mt-5">
+                    <label onclick="handleFolderClick(event)" class="glass-panel hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold px-5 py-2 rounded-full border shadow-md flex items-center gap-2 cursor-pointer transition active:scale-95">
+                        <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden" onchange="handleFolderSelect(event)">
+                        <i data-lucide="folder" class="w-3.5 h-3.5 text-lime-600"></i>
+                        <span>Upload Folder</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-lime-600"></i>
+                    </label>
+                </div>
+
+                <!-- "You" Device Avatar Node -->
+                <div class="mt-4 flex flex-col items-center">
+                    <div id="my-avatar-ring" class="w-12 h-12 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow-lg text-slate-800 dark:text-white transition-all">
+                        <i data-lucide="radio" class="w-6 h-6 text-lime-500 animate-pulse"></i>
+                    </div>
+                    <div class="flex items-center gap-1 mt-1.5 cursor-pointer hover:text-lime-500 transition" onclick="editMyName()" title="Click to edit display name">
+                        <p id="my-name-display" class="text-xs font-extrabold text-slate-800 dark:text-white">You</p>
+                        <i data-lucide="edit-3" class="w-3 h-3 text-slate-400"></i>
+                    </div>
+                    <p id="radar-status-text" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Online • Ready</p>
+                </div>
             </div>
+
+            <!-- Orbiting Peer Nodes Layer -->
+            <div id="radar-peers-layer" class="absolute inset-0 pointer-events-none z-30"></div>
         </div>
     </main>
 
-    <!-- Active Transfer Progress Card Overlay -->
     <div id="progress-card" class="fixed bottom-24 left-1/2 -translate-x-1/2 max-w-md w-[92%] glass-panel p-4 rounded-2xl border shadow-2xl z-40 hidden space-y-2.5">
-        <div class="flex justify-between items-center text-xs font-bold">
-            <span id="file-info-label" class="text-slate-800 dark:text-white truncate max-w-[170px]">Transferring File...</span>
-            <div class="flex items-center gap-2">
-                <span id="chunk-size-badge" class="bg-lime-500/10 border border-lime-500/30 text-lime-600 dark:text-lime-400 text-[9px] px-1.5 py-0.5 rounded-md font-mono">Auto 128KB</span>
-                <span id="speed-label" class="text-lime-600 dark:text-lime-400 font-mono text-xs">0 MB/s</span>
+        <div class="flex justify-between items-center text-xs font-bold gap-2">
+            <div class="flex items-center gap-1.5 truncate max-w-[190px]">
+                <span id="transfer-direction-badge" class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-lime-500/20 text-lime-600 dark:text-lime-400 border border-lime-500/30 flex-shrink-0">Sending</span>
+                <span id="file-info-label" class="text-slate-800 dark:text-white truncate">Transferring...</span>
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+                <span id="chunk-size-badge" class="bg-lime-500/10 border border-lime-500/30 text-lime-600 dark:text-lime-400 text-[9px] px-1.5 py-0.5 rounded-md font-mono" title="Adaptive WebRTC Chunk">Auto 64KB</span>
+                <span id="speed-label" class="text-lime-600 dark:text-lime-400 font-mono text-xs font-black">0 MB/s</span>
             </div>
         </div>
         
@@ -390,20 +363,20 @@
 
         <div class="flex justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono">
             <span id="transferred-bytes">0 MB / 0 MB</span>
-            <span id="percent-label">0%</span>
+            <span id="eta-label" class="text-slate-400">ETA: --</span>
+            <span id="percent-label" class="text-lime-600 dark:text-lime-400 font-black">0%</span>
         </div>
     </div>
 
-    <!-- Direct-to-Disk Stream Prompt Overlay -->
     <div id="disk-prompt-card" class="fixed bottom-24 left-1/2 -translate-x-1/2 max-w-md w-[92%] bg-lime-950/90 border border-lime-500/40 p-4 rounded-2xl space-y-3 z-40 hidden shadow-2xl backdrop-blur-md text-white">
         <div class="flex items-start gap-3">
             <div class="p-2 bg-lime-500/20 rounded-xl text-lime-400">
                 <i data-lucide="hard-drive" class="w-5 h-5"></i>
             </div>
             <div>
-                <h3 class="text-xs font-extrabold text-lime-300">Large File Stream Detected</h3>
-                <p id="disk-prompt-file-info" class="text-xs font-mono text-slate-200 mt-0.5">file.zip (1.2 GB)</p>
-                <p class="text-[10px] text-slate-300 mt-1">Select a folder on disk to write data directly without consuming device RAM.</p>
+                <h3 class="text-xs font-extrabold text-lime-300">Large File (>50 MB) Stream</h3>
+                <p id="disk-prompt-file-info" class="text-xs font-mono text-slate-200 mt-0.5">file.zip (100 MB)</p>
+                <p class="text-[10px] text-slate-300 mt-1">Select a folder on disk to write data directly without consuming browser RAM.</p>
             </div>
         </div>
         <button onclick="acceptDiskTransfer()" class="w-full bg-lime-500 hover:bg-lime-400 text-slate-950 font-extrabold py-2 rounded-xl text-xs transition shadow">
@@ -411,26 +384,24 @@
         </button>
     </div>
 
-    <!-- Bottom Dock Control Bar -->
     <footer class="w-full max-w-lg mx-auto px-4 pb-4 z-30">
         <div class="glass-panel p-1.5 rounded-2xl border shadow-xl flex items-center justify-between text-xs font-bold gap-1">
-            <button id="dock-btn-main" onclick="switchDockTab('main')" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-lime-500 to-green-600 text-white shadow flex items-center justify-center gap-1.5 transition">
+            <button id="dock-btn-radar" onclick="switchDockTab('radar')" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-lime-500 to-green-600 text-white shadow flex items-center justify-center gap-1.5 transition">
                 <i data-lucide="radar" class="w-4 h-4"></i>
                 <span>Radar Mesh</span>
             </button>
             <button id="dock-btn-history" onclick="switchDockTab('history')" class="flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition">
                 <i data-lucide="folder-down" class="w-4 h-4"></i>
                 <span>Files & History</span>
-                <span id="history-badge-count" class="bg-lime-500 text-white text-[9px] px-1.5 py-0.5 rounded-full hidden">0</span>
+                <span id="history-badge-count" class="bg-lime-500 text-white text-[9px] px-1.5 py-0.2 rounded-full hidden">0</span>
             </button>
             <button id="dock-btn-clip" onclick="switchDockTab('clip')" class="flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition">
                 <i data-lucide="clipboard" class="w-4 h-4"></i>
-                <span>Chat</span>
+                <span>Live Clipboard</span>
             </button>
         </div>
     </footer>
 
-    <!-- Drawer Modal 1: Files & Transfer History -->
     <div id="drawer-history" class="fixed inset-0 bg-black/60 backdrop-blur-md hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="glass-panel max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] flex flex-col shadow-2xl border">
             <div class="flex justify-between items-center border-b pb-3 border-slate-200 dark:border-slate-800">
@@ -464,125 +435,92 @@
         </div>
     </div>
 
-    <!-- Drawer Modal 2: Pro Chat + Clipboard + Voice -->
     <div id="drawer-clip" class="fixed inset-0 bg-black/60 backdrop-blur-md hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div class="glass-panel max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 space-y-3 max-h-[90vh] flex flex-col shadow-2xl border">
+        <div class="glass-panel max-w-lg w-full rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] flex flex-col shadow-2xl border">
             <div class="flex justify-between items-center border-b pb-3 border-slate-200 dark:border-slate-800">
-                <div>
-                    <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">Private Chat</h3>
-                    <p id="chat-peer-status" class="text-[9px] font-bold text-emerald-500 mt-0.5">End-to-end WebRTC data channel • no cloud chat history</p>
-                </div>
+                <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">Live Clipboard & Voice Talk</h3>
                 <button onclick="closeDrawers()" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <div id="typing-indicator" class="hidden text-[10px] font-bold text-slate-400 px-2">
-                <span class="inline-flex gap-1 items-center"><span class="w-1.5 h-1.5 rounded-full bg-lime-500 animate-bounce"></span><span class="w-1.5 h-1.5 rounded-full bg-lime-500 animate-bounce" style="animation-delay:.12s"></span><span class="w-1.5 h-1.5 rounded-full bg-lime-500 animate-bounce" style="animation-delay:.24s"></span> Peer is typing…</span>
-            </div>
-
-            <div id="chat-list" class="flex-1 overflow-y-auto space-y-2 min-h-[260px] max-h-[48vh] px-1 py-1">
-                <div id="chat-empty" class="h-full min-h-[220px] flex flex-col items-center justify-center text-center text-slate-400">
-                    <i data-lucide="message-circle" class="w-8 h-8 mb-2 opacity-50"></i>
-                    <p class="text-xs font-bold">No messages yet</p>
-                    <p class="text-[9px] mt-1">Send a message, emoji, link or code snippet.</p>
-                </div>
-            </div>
-
-            <div id="chat-reply-bar" class="hidden glass-panel border rounded-xl px-3 py-2 flex items-center justify-between gap-2">
-                <div class="min-w-0">
-                    <p class="text-[9px] font-black uppercase text-lime-600">Replying</p>
-                    <p id="chat-reply-text" class="text-[10px] truncate text-slate-500"></p>
-                </div>
-                <button onclick="cancelChatReply()" class="p-1 text-slate-400"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-
-            <div class="flex items-end gap-2">
-                <button onclick="openChatEmojiPicker()" class="glass-panel border rounded-xl p-2.5 text-lg leading-none" title="Emoji">😊</button>
-                <textarea id="clip-text-input" rows="2" oninput="handleChatTyping()" onkeydown="handleClipKeyDown(event)"
-                    placeholder="Message… (Enter to send, Shift+Enter for new line)"
-                    class="flex-1 glass-panel border rounded-2xl p-3 text-xs focus:outline-none focus:border-lime-500 transition resize-none text-slate-900 dark:text-white"></textarea>
-                <button onclick="sendLiveText()" class="theme-accent-btn p-3 rounded-xl shadow transition active:scale-95" title="Send message">
-                    <i data-lucide="send" class="w-4 h-4"></i>
-                </button>
-            </div>
-
-            <div id="chat-emoji-picker" class="hidden flex flex-wrap gap-1.5 glass-panel border rounded-xl p-2">
-                ${["👍","❤️","😂","🔥","😍","😢","😮","🎉","🙏","✅","❌","🚀","💯","😊","😎","🤝","👏","⭐","📌","🔒"].map(e => `<button onclick="insertChatEmoji('${e}')" class="text-lg p-1 rounded-lg hover:bg-lime-500/10">${e}</button>`).join("")}
-            </div>
-
-            <div class="flex items-center justify-between pt-1">
-                <div class="flex gap-1.5">
-                    <button onclick="sendClipboardSnapshot()" class="glass-panel border rounded-lg px-2 py-1.5 text-[9px] font-bold text-slate-500 hover:text-lime-600" title="Send current clipboard">
-                        <i data-lucide="clipboard" class="w-3 h-3 inline"></i> Clipboard
+            <div class="space-y-3">
+                <textarea id="clip-text-input" rows="3" onkeydown="handleClipKeyDown(event)" placeholder="Paste text, code snippet, WiFi password, or URL here... (Press Enter to send, Shift+Enter for new line)" 
+                          class="w-full glass-panel border rounded-2xl p-3 text-xs font-mono focus:outline-none focus:border-lime-500 transition resize-none text-slate-900 dark:text-white"></textarea>
+                <div class="flex gap-2">
+                    <button onclick="sendLiveText()" class="flex-1 theme-accent-btn py-2.5 rounded-xl text-xs font-extrabold shadow transition active:scale-95 flex items-center justify-center gap-2">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                        Send Live Text Snippet
                     </button>
-                    <button id="voice-rec-btn" onclick="toggleVoiceRecording()" class="glass-panel border border-lime-500/40 hover:bg-lime-500/10 text-lime-600 dark:text-lime-400 px-2.5 py-1.5 rounded-lg text-[9px] font-extrabold transition active:scale-95" title="Voice note">
-                        <i id="voice-rec-icon" data-lucide="mic" class="w-3 h-3 inline"></i>
-                        <span id="voice-rec-label">Voice</span>
+                    <button id="voice-rec-btn" onclick="toggleVoiceRecording()" class="glass-panel border border-lime-500/40 hover:bg-lime-500/10 text-lime-600 dark:text-lime-400 py-2.5 px-3.5 rounded-xl text-xs font-extrabold transition active:scale-95 flex items-center justify-center gap-1.5 flex-shrink-0" title="Voice Talk / Record Audio Note">
+                        <i id="voice-rec-icon" data-lucide="mic" class="w-4 h-4 text-lime-500"></i>
+                        <span id="voice-rec-label">Voice Talk</span>
                     </button>
                 </div>
-                <button onclick="clearChatHistory()" class="text-[9px] font-bold text-slate-400 hover:text-rose-500">Clear chat</button>
+            </div>
+
+            <div class="space-y-2 flex-1 overflow-y-auto pt-2">
+                <div class="flex justify-between items-center">
+                    <h4 class="text-[10px] font-black uppercase tracking-wider text-slate-400">Snippet & Voice Log</h4>
+                    <button onclick="clearSnippetHistory()" class="text-xs font-bold text-slate-400 hover:text-rose-500 transition">Clear Log</button>
+                </div>
+                <div id="snippet-list" class="space-y-2">
+                    <p id="empty-snippets" class="text-center text-xs text-slate-400 py-4 font-medium">No snippets shared yet</p>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Pure Local QR Pairing -->
     <div id="pair-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
-        <div class="glass-panel max-w-md w-full rounded-3xl p-6 space-y-4 shadow-2xl relative border max-h-[92vh] overflow-y-auto">
+        <div class="glass-panel max-w-sm w-full rounded-3xl p-6 space-y-4 text-center shadow-2xl relative border">
             <button onclick="closePairingModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
-            <div class="pr-8">
-                <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Local QR Pairing</h3>
-                <p class="text-xs text-slate-400 mt-1">Same hotspot/Wi-Fi • No Internet • Direct device-to-device</p>
+
+            <div>
+                <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Connect Device</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Scan QR or enter remote 6-digit code</p>
             </div>
 
-            <div class="glass-panel border rounded-2xl p-4 space-y-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl theme-accent-btn flex items-center justify-center text-white font-extrabold">1</div>
-                    <div>
-                        <p class="text-xs font-extrabold text-slate-900 dark:text-white">Start on this device</p>
-                        <p class="text-[10px] text-slate-400">Create a QR code for the other device to scan.</p>
-                    </div>
+            <!-- QR Code Display -->
+            <div class="relative py-2 flex flex-col items-center justify-center">
+                <div id="qrcode" class="p-2 bg-white rounded-2xl shadow-lg border"></div>
+                <div class="mt-3 flex items-center gap-2">
+                    <span id="modal-my-code" class="text-2xl font-black font-mono tracking-widest text-lime-600 dark:text-lime-400">------</span>
+                    <button onclick="regenerateDeviceCode()" title="Generate new code" class="p-1.5 rounded-lg text-slate-400 hover:text-lime-600 transition">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
                 </div>
-                <button onclick="startOfflineOffer()" class="theme-accent-btn w-full rounded-xl py-2.5 text-xs font-extrabold">Create Connection QR</button>
-                <div id="offline-offer-qr" class="hidden min-h-[210px] flex items-center justify-center rounded-2xl bg-white p-3"></div>
-                <textarea id="offline-offer" readonly class="hidden"></textarea>
-                <button id="copy-offer-fallback" onclick="copyOfflineOffer()" class="hidden w-full glass-panel border rounded-xl py-2 text-[10px] font-bold text-slate-600 dark:text-slate-300">Copy code instead</button>
             </div>
 
-            <div class="glass-panel border rounded-2xl p-4 space-y-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 font-extrabold">2</div>
-                    <div>
-                        <p class="text-xs font-extrabold text-slate-900 dark:text-white">Other device</p>
-                        <p class="text-[10px] text-slate-400">Scan the QR. It will automatically prepare the reply.</p>
-                    </div>
+            <!-- Manual Input & Camera Scanner -->
+            <div class="space-y-2 border-t pt-3 border-slate-200 dark:border-slate-800">
+                <div class="flex justify-between items-center text-xs font-bold text-slate-400">
+                    <span>ENTER REMOTE CODE</span>
+                    <button onclick="toggleQRScanner()" class="text-lime-600 dark:text-lime-400 hover:underline flex items-center gap-1">
+                        <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                        Scan Camera
+                    </button>
                 </div>
-                <button onclick="startOfflineQRScanner('offer')" class="w-full glass-panel border border-lime-500/40 rounded-xl py-2.5 text-xs font-extrabold text-lime-600">Scan Connection QR</button>
-            </div>
 
-            <div class="glass-panel border rounded-2xl p-4 space-y-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 font-extrabold">3</div>
-                    <div>
-                        <p class="text-xs font-extrabold text-slate-900 dark:text-white">Finish</p>
-                        <p class="text-[10px] text-slate-400">The second device shows a reply QR. Scan it here.</p>
-                    </div>
+                <div id="qr-scanner-container" class="hidden glass-panel border p-2 rounded-xl space-y-2">
+                    <div id="qr-reader" class="overflow-hidden rounded-lg bg-black min-h-[160px]"></div>
+                    <button onclick="stopQRScanner()" class="w-full bg-slate-800 text-slate-300 font-bold py-1.5 rounded-lg text-xs">
+                        Close Camera
+                    </button>
                 </div>
-                <button onclick="startOfflineQRScanner('answer')" class="w-full theme-accent-btn rounded-xl py-2.5 text-xs font-extrabold">Scan Reply QR</button>
-                <div id="offline-answer-qr" class="hidden min-h-[210px] flex items-center justify-center rounded-2xl bg-white p-3"></div>
-                <textarea id="offline-answer" readonly class="hidden"></textarea>
-                <textarea id="offline-remote-offer" class="hidden"></textarea>
-                <textarea id="offline-remote-answer" class="hidden"></textarea>
-            </div>
 
-            <div id="qr-reader" class="hidden rounded-2xl overflow-hidden border"></div>
-            <p id="offline-pair-status" class="text-[10px] leading-relaxed text-slate-400 text-center">Connect both devices to the same hotspot first. Internet is not required for the transfer.</p>
+                <div class="flex gap-2">
+                    <input type="text" id="peer-id-input" maxlength="6" placeholder="6-DIGIT CODE" 
+                           class="flex-1 glass-panel border rounded-xl px-3 py-2 font-mono font-bold text-center tracking-widest uppercase text-sm focus:outline-none focus:border-lime-500 transition text-slate-900 dark:text-white">
+                    <button id="modal-pair-btn" onclick="connectToPeer()" class="theme-accent-btn px-5 py-2 rounded-xl text-xs font-bold transition active:scale-95 shadow">
+                        Pair
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Modal: Incoming Direct Pairing Gate -->
     <div id="pair-request-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
         <div class="glass-panel max-w-sm w-full rounded-3xl p-6 space-y-4 text-center shadow-2xl relative border">
             <div class="w-12 h-12 mx-auto bg-lime-500/20 text-lime-600 dark:text-lime-400 rounded-2xl flex items-center justify-center border border-lime-500/30">
@@ -591,7 +529,7 @@
             <div>
                 <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">Incoming Pair Request</h3>
                 <p id="pair-request-peer-id" class="text-sm font-mono font-bold text-lime-600 dark:text-lime-400 mt-1">Device #------</p>
-                <p class="text-xs text-slate-400 mt-1">An external device is requesting direct P2P connection.</p>
+                <p class="text-xs text-slate-400 mt-1">An external device is requesting to connect to your LimeShare session.</p>
             </div>
             <div class="flex gap-2 pt-2">
                 <button onclick="rejectPairingRequest()" class="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 font-bold py-2.5 rounded-xl text-xs transition">
@@ -604,8 +542,8 @@
         </div>
     </div>
 
-    <!-- Modal: Symbolic Guide -->
-    <div id="guide-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+    <!-- Symbolic Guide Modal -->
+    <div id="how-to-use-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
         <div class="glass-panel max-w-md w-full rounded-3xl p-6 space-y-5 relative shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border">
             <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3 flex-shrink-0">
                 <div class="flex items-center gap-2">
@@ -614,7 +552,7 @@
                     </div>
                     <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">How LimeShare Works</h3>
                 </div>
-                <button onclick="closeGuideModal()" class="p-1 rounded-full text-slate-400 hover:text-slate-600">
+                <button onclick="closeHowToUseModal()" class="p-1 rounded-full text-slate-400 hover:text-slate-600">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -643,7 +581,7 @@
                             <i data-lucide="hard-drive" class="w-5 h-5"></i>
                         </div>
                         <span class="text-[11px] font-extrabold">3. Stream</span>
-                        <span class="text-[9px] text-slate-400">Direct P2P</span>
+                        <span class="text-[9px] text-slate-400">Direct Local</span>
                     </div>
                 </div>
 
@@ -652,12 +590,12 @@
                     <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
                         <i data-lucide="wifi" class="w-5 h-5 text-lime-500 flex-shrink-0"></i>
                         <div>
-                            <p class="text-[11px] font-bold leading-tight">Direct P2P</p>
-                            <p class="text-[9px] text-slate-400">Peer-to-peer connection</p>
+                            <p class="text-[11px] font-bold leading-tight">Same Wi-Fi</p>
+                            <p class="text-[9px] text-slate-400">0 Data quota used</p>
                         </div>
                     </div>
                     <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
-                        <i data-lucide="lock" class="w-5 h-5 text-emerald-500 flex-shrink-0"></i>
+                        <i data-lucide="shield-check" class="w-5 h-5 text-emerald-500 flex-shrink-0"></i>
                         <div>
                             <p class="text-[11px] font-bold leading-tight">Private P2P</p>
                             <p class="text-[9px] text-slate-400">0 Cloud Storage</p>
@@ -667,7 +605,7 @@
                         <i data-lucide="cpu" class="w-5 h-5 text-sky-500 flex-shrink-0"></i>
                         <div>
                             <p class="text-[11px] font-bold leading-tight">Direct Disk</p>
-                            <p class="text-[9px] text-slate-400">0 RAM overhead</p>
+                            <p class="text-[9px] text-slate-400">>50MB 0 RAM</p>
                         </div>
                     </div>
                     <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
@@ -679,7 +617,7 @@
                     </div>
                 </div>
 
-                <!-- OS Compatibility Symbolic Row -->
+                <!-- OS Compatibility Row -->
                 <div class="glass-panel p-2.5 border rounded-2xl flex items-center justify-around text-slate-400 text-[10px] font-bold">
                     <span class="flex items-center gap-1"><i data-lucide="laptop" class="w-3.5 h-3.5 text-lime-500"></i> Windows / Mac</span>
                     <span>•</span>
@@ -689,13 +627,12 @@
                 </div>
             </div>
 
-            <button onclick="closeGuideModal()" class="w-full theme-accent-btn py-2.5 rounded-xl text-xs font-bold transition shadow flex-shrink-0">
+            <button onclick="closeHowToUseModal()" class="w-full theme-accent-btn py-2.5 rounded-xl text-xs font-bold transition shadow flex-shrink-0">
                 Close Guide
             </button>
         </div>
     </div>
 
-    <!-- Media Preview Modal -->
     <div id="preview-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
         <div class="glass-panel max-w-lg w-full rounded-3xl p-5 space-y-3 relative shadow-2xl border">
             <div class="flex justify-between items-center border-b pb-2 border-slate-200 dark:border-slate-800">
@@ -720,20 +657,15 @@
     </div>
 
     <script>
-        // High Speed Protocol Constants
         const MIN_CHUNK_SIZE = 32768;   // 32KB
-        const MAX_CHUNK_SIZE = 524288;  // 512KB
-        const DEFAULT_CHUNK_SIZE = 131072; // 128KB
-        const MAX_BUFFER = 4 * 1024 * 1024; // 4MB
-        const LOW_BUFFER = 1 * 1024 * 1024; // 1MB
-        const PEER_PREFIX = "ls-local-wifi-";
+        const MAX_CHUNK_SIZE = 65536;   // 64KB (Universal reliable packet limit)
+        const DEFAULT_CHUNK_SIZE = 65536; // 64KB standard
+        const MAX_BUFFER = 2 * 1024 * 1024; // 2MB backpressure limit
+        const LOW_BUFFER = 512 * 1024; // 512KB drain threshold
+        const DISK_STREAM_THRESHOLD = 50 * 1024 * 1024; // 50MB Direct Storage threshold
+        const PEER_PREFIX = "ls-lan-v6-";
 
-        // Application State
         let currentChunkSize = DEFAULT_CHUNK_SIZE;
-        let consecutiveFastDrains = 0;
-        let consecutiveBackpressures = 0;
-
-        // User Identity
         let myID = null;
         let myUserName = localStorage.getItem('limeshare_user_name');
         if (!myUserName) {
@@ -745,40 +677,22 @@
             localStorage.setItem('limeshare_user_name', myUserName);
         }
 
-        // Networking State
-        let peer = null; // retained for compatibility; offline mode does not use PeerJS
-        let offlinePC = null;
-        let offlineRole = null;
-        let offlinePendingCandidate = null;
+        let peer = null;
         let activeDataConn = null;
         let isConnected = false;
         let connectingPeerID = null;
-        let connectionWatchdogTimer = null;
-        let heartbeatInterval = null;
-        let broadcastChannel = null;
-        let mqttClient = null; // Disabled in Pure Offline Local mode
-        let localSubnetKey = null;
-
         let connectedPeerID = null;
+        let dataChannelHeartbeat = null;
+        let broadcastChannel = null;
+        let mqttClient = null;
+        
         let pendingPeerRequest = null;
         let isAudioMuted = localStorage.getItem('limeshare_audio_muted') === 'true';
         let lastChimeTime = 0;
 
-        // Voice Recording State
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let isRecordingVoice = false;
-        let voiceTimerInterval = null;
-        let voiceRecordStartTime = 0;
-
-        // File & Snippet Queues
         let fileHistory = [];
         let selectedFileIndices = new Set();
         let snippetHistory = [];
-        let chatMessages = [];
-        let chatTypingTimer = null;
-        let chatReplyTarget = null;
-        let chatLastReadId = null;
         let pendingFileQueue = [];
         let isTransferring = false;
         let currentTransferFile = null;
@@ -792,11 +706,25 @@
         let receivedSize = 0;
         let activePartialTransfers = {};
         let writableStream = null;
+        let diskWriteQueue = Promise.resolve();
         let html5QrcodeScanner = null;
         let db = null;
         let wakeLock = null;
         let deferredPrompt = null;
-        // Public MQTT discovery intentionally disabled in Production Secure mode.
+
+        // Statistics state
+        let transferStartTime = 0;
+        let transferPeakSpeed = 0;
+        let speedHistory = new Array(30).fill(0);
+        let lastTime = performance.now();
+        let lastBytes = 0;
+        let lastUiUpdate = 0;
+
+        const MQTT_BROKERS = [
+            'wss://broker.emqx.io:8084/mqtt',
+            'wss://broker.hivemq.com:8884/mqtt',
+            'wss://test.mosquitto.org:8081'
+        ];
 
         document.addEventListener('DOMContentLoaded', async () => {
             lucide.createIcons();
@@ -812,129 +740,265 @@
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
         }
 
+        function triggerFileUpload() {
+            if (!isConnected || !activeDataConn) {
+                openPairingModal();
+                showToast("Pair with a device to send files", "lime");
+                return;
+            }
+            document.getElementById('file-input').click();
+        }
+
+        function handleFolderClick(e) {
+            if (!isConnected || !activeDataConn) {
+                e.preventDefault();
+                openPairingModal();
+                showToast("Pair with a device to send files", "lime");
+            }
+        }
+
+        function updateChunkBadge(sizeInBytes) {
+            const badge = document.getElementById('chunk-size-badge');
+            if (badge) {
+                const kb = Math.round(sizeInBytes / 1024);
+                badge.innerText = `Auto ${kb}KB`;
+            }
+        }
+
+        function playChime(type) {
+            if (isAudioMuted) return;
+            const now = Date.now();
+            if (type === 'complete' && (now - lastChimeTime < 1500)) return;
+            if (type === 'complete') lastChimeTime = now;
+
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                const t = ctx.currentTime;
+                if (type === 'connect') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, t);
+                    osc.frequency.exponentialRampToValueAtTime(659.25, t + 0.12);
+                    gain.gain.setValueAtTime(0.06, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+                    osc.start(t);
+                    osc.stop(t + 0.25);
+                } else if (type === 'complete') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, t);
+                    osc.frequency.setValueAtTime(880.00, t + 0.08);
+                    gain.gain.setValueAtTime(0.05, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                    osc.start(t);
+                    osc.stop(t + 0.3);
+                } else if (type === 'text') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, t);
+                    gain.gain.setValueAtTime(0.04, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+                    osc.start(t);
+                    osc.stop(t + 0.12);
+                }
+            } catch(e) {}
+        }
+
         function initPeer() {
-            myID = Math.floor(100000 + Math.random() * 900000).toString();
-            try { sessionStorage.setItem('limeshare_session_id', myID); } catch (e) {}
-            const codeEl = document.getElementById('my-code-display');
-            if (codeEl) codeEl.innerText = `#${myID}`;
-            const modalCode = document.getElementById('modal-my-code');
-            if (modalCode) modalCode.innerText = myID;
+            myID = localStorage.getItem('limeshare_my_id');
+            if (!myID || myID.length !== 6) {
+                myID = Math.floor(100000 + Math.random() * 900000).toString();
+                localStorage.setItem('limeshare_my_id', myID);
+            }
+            document.getElementById('my-code-display').innerText = `#${myID}`;
+            document.getElementById('modal-my-code').innerText = myID;
             const nameEl = document.getElementById('my-name-display');
             if (nameEl) nameEl.innerText = myUserName;
-            updateRadarStatus('Offline Local • Ready');
-        }
 
-        // Local WebRTC data-channel setup.
-        // This uses the same message/file-transfer protocol as the main app,
-        // but works with a browser-to-browser RTCPeerConnection that has no
-        // PeerJS, STUN, TURN, MQTT, or Internet dependency.
-        function setupOfflineDataConnection(conn, isInitiator) {
-            if (!conn) throw new Error('Local data channel is unavailable');
+            const qrContainer = document.getElementById("qrcode");
+            if (qrContainer) {
+                qrContainer.innerHTML = "";
+                new QRCode(qrContainer, {
+                    text: myID,
+                    width: 140,
+                    height: 140,
+                    colorDark: "#0f172a",
+                    colorLight: "#ffffff"
+                });
+            }
 
-            // RTCDataChannel.send() only accepts strings/bytes. The original
-            // LimeShare protocol sends JavaScript objects, so wrap the channel
-            // with a tiny serializer. Binary ArrayBuffers are base64 encoded;
-            // this keeps the rest of the application unchanged.
-            const encodeLocalValue = (key, value) => {
-                if (value instanceof ArrayBuffer) {
-                    return { __limeshare_binary: true, data: signalBytesToBase64(new Uint8Array(value)) };
-                }
-                if (value instanceof Uint8Array) {
-                    return { __limeshare_binary: true, data: signalBytesToBase64(value) };
-                }
-                return value;
-            };
+            setupPresenceBeacon();
 
-            const decodeLocalValue = (key, value) => {
-                if (value && value.__limeshare_binary) return base64ToBytes(value.data).buffer;
-                return value;
-            };
-
-            const localChannel = new Proxy(conn, {
-                get(target, prop, receiver) {
-                    if (prop === 'send') {
-                        return value => target.send(JSON.stringify(value, encodeLocalValue));
+            try {
+                peer = new Peer(PEER_PREFIX + myID, {
+                    debug: 1,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' },
+                            { urls: 'stun:stun2.l.google.com:19302' },
+                            { urls: 'stun:stun.cloudflare.com:3478' }
+                        ]
                     }
-                    return Reflect.get(target, prop, receiver);
-                }
-            });
+                });
 
-            activeDataConn = localChannel;
+                peer.on('open', () => {
+                    updateRadarStatus("Online • Ready");
+                    checkUrlAutoPair();
+                });
 
-            conn.onopen = () => {
-                if (isInitiator) {
-                    try {
-                        localChannel.send({
-                            type: 'pair_handshake_req',
-                            senderID: myID,
-                            userName: myUserName
-                        });
-                    } catch (e) {}
-                }
-            };
-
-            conn.onmessage = event => {
-                try {
-                    if (typeof event.data === 'string') {
-                        const data = JSON.parse(event.data, decodeLocalValue);
-                        handleIncomingData(data, localChannel);
-                    } else if (event.data instanceof ArrayBuffer) {
-                        // Backward-compatible support for a raw binary chunk.
-                        handleIncomingData({ type: 'chunk', chunk: event.data }, localChannel);
-                    } else if (event.data instanceof Blob) {
-                        event.data.arrayBuffer().then(buffer => {
-                            handleIncomingData({ type: 'chunk', chunk: buffer }, localChannel);
-                        });
+                peer.on('disconnected', () => {
+                    if (isConnected && activeDataConn && activeDataConn.open) {
+                        updateRadarStatus("Direct LAN (Signaling Offline)");
+                    } else {
+                        updateRadarStatus("Reconnecting...");
+                        if (peer && !peer.destroyed) {
+                            try { peer.reconnect(); } catch(e) {}
+                        }
                     }
-                } catch (e) {
-                    console.warn('Local WebRTC message error:', e);
-                }
-            };
+                });
 
-            conn.onclose = () => disconnectPeer(false);
-            conn.onerror = () => disconnectPeer(false);
+                peer.on('connection', (incomingConn) => {
+                    setupDataConnection(incomingConn, false);
+                });
+
+                peer.on('error', (err) => {
+                    if (isConnected && activeDataConn && activeDataConn.open) return;
+                    
+                    if (err.type === 'peer-unavailable') {
+                        showToast("Peer is offline or code is incorrect.", "rose");
+                        updateRadarStatus("Peer Unavailable");
+                    } else if (err.type === 'unavailable-id') {
+                        regenerateDeviceCode();
+                    } else {
+                        if (peer && !peer.destroyed && peer.disconnected) {
+                            try { peer.reconnect(); } catch(e) {}
+                        }
+                    }
+                    
+                    if (connectingPeerID) {
+                        connectingPeerID = null;
+                        renderRadarPeers();
+                    }
+                });
+            } catch (e) {
+                updateRadarStatus("Offline Mode");
+            }
         }
 
-        function makeOfflinePC(role) {
-            if (offlinePC) { try { offlinePC.close(); } catch(e) {} }
-            offlineRole = role;
-            offlinePC = new RTCPeerConnection({ iceServers: [] });
+        function setupPresenceBeacon() {
+            const topicRoom = `limeshare_lan_mesh_v6`;
 
-            offlinePC.onicecandidate = () => {};
-            offlinePC.onconnectionstatechange = () => {
-                const state = offlinePC.connectionState;
-                if (state === 'connected') updateRadarStatus('Connected • Direct Local P2P');
-                if (['failed','disconnected','closed'].includes(state) && isConnected) disconnectPeer(false);
-            };
+            if (!broadcastChannel && 'BroadcastChannel' in window) {
+                broadcastChannel = new BroadcastChannel('limeshare_local_lan_ch');
+            }
 
-            offlinePC.ondatachannel = (event) => {
-                setupOfflineDataConnection(event.channel, false);
-            };
-            return offlinePC;
-        }
+            if (broadcastChannel) {
+                broadcastChannel.onmessage = (event) => {
+                    const data = event.data;
+                    if (!data || data.senderID === myID) return;
 
-        function waitForIceComplete(pc) {
-            if (pc.iceGatheringState === 'complete') return Promise.resolve();
-            return new Promise(resolve => {
-                const timer = setTimeout(resolve, 5000);
-                const check = () => {
-                    if (pc.iceGatheringState === 'complete') {
-                        clearTimeout(timer);
-                        pc.removeEventListener('icegatheringstatechange', check);
-                        resolve();
+                    if (data.type === 'presence_ping') {
+                        registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
+                        broadcastChannel.postMessage({ 
+                            type: 'presence_pong', 
+                            senderID: myID, 
+                            userName: myUserName, 
+                            targetID: data.senderID, 
+                            deviceType: isMobileDevice() ? 'mobile' : 'laptop' 
+                        });
+                    } else if (data.type === 'presence_pong') {
+                        if (data.targetID === myID || !data.targetID) {
+                            registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
+                        }
                     }
                 };
-                pc.addEventListener('icegatheringstatechange', check);
-            });
-        }
+            }
 
-        function encodeSignal(obj) {
-            return JSON.stringify(obj);
-        }
-        function decodeSignal(text) {
-            const raw = (text || '').trim();
-            if (!raw) throw new Error('Empty pairing data');
-            return JSON.parse(raw);
+            function connectMqttBroker(brokerIndex = 0) {
+                if (brokerIndex >= MQTT_BROKERS.length) return;
+                try {
+                    const brokerUrl = MQTT_BROKERS[brokerIndex];
+                    mqttClient = mqtt.connect(brokerUrl, {
+                        clientId: 'ls_' + myID + '_' + Math.random().toString(16).substr(2, 6),
+                        keepalive: 10,
+                        connectTimeout: 4000
+                    });
+
+                    mqttClient.on('connect', () => {
+                        mqttClient.subscribe(topicRoom);
+                        sendPresencePing();
+                    });
+
+                    mqttClient.on('message', (t, message) => {
+                        try {
+                            const data = JSON.parse(message.toString());
+                            if (!data || !data.senderID || data.senderID === myID) return;
+
+                            if (data.type === 'presence_ping') {
+                                registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
+                                if (mqttClient && mqttClient.connected) {
+                                    mqttClient.publish(topicRoom, JSON.stringify({
+                                        type: 'presence_pong',
+                                        senderID: myID,
+                                        userName: myUserName,
+                                        targetID: data.senderID,
+                                        deviceType: isMobileDevice() ? 'mobile' : 'laptop'
+                                    }));
+                                }
+                            } else if (data.type === 'presence_pong') {
+                                if (data.targetID === myID || !data.targetID) {
+                                    registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
+                                }
+                            }
+                        } catch(e) {}
+                    });
+
+                    mqttClient.on('error', () => {
+                        try { mqttClient.end(); } catch(e) {}
+                        connectMqttBroker(brokerIndex + 1);
+                    });
+                } catch(e) {
+                    connectMqttBroker(brokerIndex + 1);
+                }
+            }
+
+            connectMqttBroker(0);
+
+            window.sendPresencePing = function() {
+                const payload = {
+                    type: 'presence_ping',
+                    senderID: myID,
+                    userName: myUserName,
+                    timestamp: Date.now(),
+                    deviceType: isMobileDevice() ? 'mobile' : 'laptop'
+                };
+
+                if (broadcastChannel) broadcastChannel.postMessage(payload);
+                if (mqttClient && mqttClient.connected) {
+                    mqttClient.publish(topicRoom, JSON.stringify(payload));
+                }
+            };
+
+            if (presenceInterval) clearInterval(presenceInterval);
+            sendPresencePing();
+            setTimeout(sendPresencePing, 800);
+
+            presenceInterval = setInterval(() => {
+                const now = Date.now();
+                Object.keys(discoveredPeers).forEach(id => {
+                    if (now - (discoveredPeers[id]?.lastSeen || 0) > 12000) {
+                        delete discoveredPeers[id];
+                    }
+                });
+
+                sendPresencePing();
+                renderRadarPeers();
+            }, 3500);
         }
 
         function registerDiscoveredPeer(peerID, deviceType = 'laptop', userName = '') {
@@ -942,7 +1006,7 @@
             discoveredPeers[peerID] = {
                 lastSeen: Date.now(),
                 deviceType: deviceType || 'laptop',
-                userName: userName || `Device #${peerID}`
+                userName: userName || discoveredPeers[peerID]?.userName || `Device #${peerID}`
             };
             renderRadarPeers();
         }
@@ -1034,169 +1098,248 @@
             lucide.createIcons();
         }
 
-        function connectToPeer() {
-            openPairingModal();
-            showToast('Offline mode: exchange Offer/Answer locally', 'lime');
-        }
+        function connectToPeer(overrideID) {
+            const input = document.getElementById('peer-id-input');
+            const rawInput = (overrideID || (input ? input.value : '')).trim();
+            const targetID = rawInput.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            
+            if (!targetID || targetID.length !== 6) {
+                showToast("Enter a valid 6-digit code", "rose");
+                return;
+            }
 
-        function abortConnectionAttempt() {
-            clearConnectionWatchdog();
-            connectingPeerID = null;
-            isConnected = false;
-            connectedPeerID = null;
+            if (targetID === myID) {
+                showToast("Cannot connect to your own device code", "rose");
+                return;
+            }
+
+            if (connectingPeerID === targetID && isConnected) return;
+
             if (activeDataConn) {
                 try { activeDataConn.close(); } catch(e) {}
                 activeDataConn = null;
             }
-            updateRadarStatus("Online • Ready");
-            const chatStatus = document.getElementById('chat-peer-status');
-            if (chatStatus) chatStatus.innerText = "Not connected • Pair a device";
-            setPeerTyping(false);
+
+            connectingPeerID = targetID;
+            isConnected = false;
+            connectedPeerID = null;
+
+            updateRadarStatus(`Connecting #${targetID}...`);
             renderRadarPeers();
+            showToast(`Connecting to #${targetID}...`, "lime");
+            closePairingModal();
+
+            const fullPeerID = PEER_PREFIX + targetID;
+
+            if (!peer || peer.destroyed) {
+                initPeer();
+                setTimeout(() => connectToPeer(targetID), 500);
+                return;
+            }
+
+            if (peer.disconnected) {
+                try { peer.reconnect(); } catch(e) {}
+            }
+
+            try {
+                const conn = peer.connect(fullPeerID, { reliable: true });
+                setupDataConnection(conn, true);
+            } catch (err) {
+                connectingPeerID = null;
+                updateRadarStatus("Online • Ready");
+                renderRadarPeers();
+                showToast("Could not initiate connection.", "rose");
+            }
         }
 
-        function clearConnectionWatchdog() {
-            if (connectionWatchdogTimer) {
-                clearTimeout(connectionWatchdogTimer);
-                connectionWatchdogTimer = null;
+        function sendControlMessage(conn, obj) {
+            if (!conn || !conn.open) return;
+            try {
+                conn.send(obj);
+            } catch(e) {
+                try { conn.send(JSON.stringify(obj)); } catch(err) {}
             }
         }
 
         function setupDataConnection(conn, isInitiator) {
-            // Compatibility wrapper for the existing application logic.
             activeDataConn = conn;
+
             conn.on('open', () => {
-                if (isInitiator) conn.send({ type: 'pair_handshake_req', senderID: myID, userName: myUserName });
+                const sendHandshake = () => {
+                    sendControlMessage(conn, {
+                        type: 'pair_handshake_req',
+                        senderID: myID,
+                        userName: myUserName
+                    });
+                };
+
+                if (isInitiator) {
+                    sendHandshake();
+                }
             });
-            conn.on('data', data => handleIncomingData(data, conn));
-            conn.on('close', () => disconnectPeer(false));
-            conn.on('error', () => disconnectPeer(false));
+
+            conn.on('data', (data) => {
+                handleIncomingData(data, conn);
+            });
+
+            conn.on('close', () => {
+                preservePartialState();
+                disconnectPeer(false);
+            });
+
+            conn.on('error', () => {
+                preservePartialState();
+                disconnectPeer(false);
+            });
         }
 
-        function handleIncomingData(data, conn) {
+        async function handleIncomingData(data, conn) {
             if (!data) return;
 
-            if (data.type === 'pair_handshake_req') {
-                pendingPeerRequest = { senderID: data.senderID, userName: data.userName, conn };
-                document.getElementById('pair-request-peer-id').innerText = `${data.userName || 'Device'} (#${data.senderID})`;
-                document.getElementById('pair-request-modal').classList.remove('hidden');
+            // Direct Raw Binary Chunk Handler
+            if (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || data instanceof Blob) {
+                let buffer;
+                if (data instanceof ArrayBuffer) {
+                    buffer = data;
+                } else if (data.buffer && data.buffer instanceof ArrayBuffer) {
+                    buffer = (data.byteOffset === 0 && data.byteLength === data.buffer.byteLength)
+                        ? data.buffer
+                        : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+                } else if (data instanceof Blob) {
+                    buffer = await data.arrayBuffer();
+                }
+                if (buffer) handleIncomingChunk(buffer);
+                return;
             }
-            else if (data.type === 'pair_handshake_ack') {
-                finalizeConnection(data.senderID, data.userName);
+
+            let msg = data;
+            if (typeof data === 'string') {
+                try {
+                    msg = JSON.parse(data);
+                } catch(e) {
+                    return;
+                }
             }
-            else if (data.type === 'pair_handshake_reject') {
-                showToast("Pairing was declined by peer.", "rose");
-                abortConnectionAttempt();
+
+            if (!msg || typeof msg !== 'object') return;
+
+            if (msg.type === 'pair_handshake_req') {
+                const securityShieldActive = localStorage.getItem('limeshare_require_approval') !== 'false';
+                if (securityShieldActive) {
+                    pendingPeerRequest = { senderID: msg.senderID, userName: msg.userName, conn };
+                    document.getElementById('pair-request-peer-id').innerText = `${msg.userName || 'Device'} (#${msg.senderID})`;
+                    document.getElementById('pair-request-modal').classList.remove('hidden');
+                } else {
+                    sendControlMessage(conn, { type: 'pair_handshake_ack', senderID: myID, userName: myUserName });
+                    finalizeConnection(msg.senderID, msg.userName);
+                }
             }
-            else if (data.type === 'ping') {
-                try { conn.send({ type: 'pong' }); } catch(e) {}
+            else if (msg.type === 'pair_handshake_ack') {
+                finalizeConnection(msg.senderID, msg.userName);
             }
-            else if (data.type === 'disconnect') {
-                showToast("Peer ended the session", "rose");
+            else if (msg.type === 'pair_handshake_reject') {
+                showToast("Pairing was declined by remote peer.", "rose");
+                connectingPeerID = null;
+                updateRadarStatus("Online • Ready");
+                renderRadarPeers();
+            }
+            else if (msg.type === 'direct_lan_ping') {
+                sendControlMessage(conn, { type: 'direct_lan_pong' });
+            }
+            else if (msg.type === 'direct_lan_pong') {
+                // Keep-alive received
+            }
+            else if (msg.type === 'disconnect') {
+                showToast("Remote peer ended the session", "rose");
                 preservePartialState();
                 disconnectPeer(false);
             }
-            else if (data.type === 'text_snippet') {
+            else if (msg.type === 'text_snippet') {
                 playChime('text');
-                addChatMessage({
-                    id: data.messageId || ('m_' + Date.now() + '_' + Math.random().toString(16).slice(2)),
-                    text: data.text || '',
-                    isSent: false,
-                    timestamp: data.timestamp || Date.now(),
-                    messageType: data.messageType || 'text',
-                    replyTo: data.replyTo || null,
-                    status: 'delivered'
-                }, true);
-                if (activeDataConn && activeDataConn.open) {
-                    try { activeDataConn.send({ type: 'message_read', messageId: data.messageId }); } catch(e) {}
-                }
+                renderTextSnippet(msg.text, false, true);
                 switchDockTab('clip');
+                showToast("Received live text snippet", "lime");
             }
-            else if (data.type === 'typing') {
-                setPeerTyping(!!data.active);
-            }
-            else if (data.type === 'message_read') {
-                markChatMessageRead(data.messageId);
-            }
-            else if (data.type === 'message_reaction') {
-                applyChatReaction(data.messageId, data.reaction, false);
-            }
-            else if (data.type === 'voice_snippet') {
+            else if (msg.type === 'voice_snippet') {
                 playChime('text');
-                const audioBlob = new Blob([data.audio], { type: data.mime || 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                renderVoiceSnippet(audioUrl, false, data.duration || 0);
-                addChatMessage({
-                    id: data.messageId || ('v_' + Date.now()),
-                    text: '',
-                    isSent: false,
-                    timestamp: data.timestamp || Date.now(),
-                    messageType: 'voice',
-                    audioUrl: audioUrl,
-                    duration: data.duration || 0,
-                    status: 'delivered'
-                }, true);
+                const pcmData = base64ToArrayBuffer(msg.audio);
+                const audioBlob = new Blob([pcmData], { type: msg.mime || 'audio/webm' });
+                renderVoiceSnippet(URL.createObjectURL(audioBlob), false, msg.duration || 0);
                 switchDockTab('clip');
+                showToast("Received voice note", "lime");
             }
-            else if (data.type === 'offer') {
-                handleFileOffer(data);
+            else if (msg.type === 'offer') {
+                handleFileOffer(msg);
             }
-            else if (data.type === 'accept') {
+            else if (msg.type === 'accept') {
                 if (currentTransferFile || lastAttemptedFile) {
                     const activeFile = currentTransferFile || lastAttemptedFile;
                     currentTransferFile = activeFile;
-                    startStreamingChunks(activeFile, data.resumeOffset || 0);
+                    const resumeOffset = msg.resumeOffset || 0;
+                    if (resumeOffset > 0) {
+                        showToast(`Resuming ${activeFile.name} from ${formatBytes(resumeOffset)}`, "lime");
+                    }
+                    startStreamingChunks(activeFile, resumeOffset);
                 }
             }
-            else if (data.type === 'chunk') {
-                handleIncomingChunk(data.chunk);
+            else if (msg.type === 'chunk' && msg.chunk) {
+                handleIncomingChunk(msg.chunk);
             }
-            else if (data.type === 'end') {
+            else if (msg.type === 'end') {
                 handleTransferEnd();
             }
         }
 
         function finalizeConnection(peerID, peerName) {
-            clearConnectionWatchdog();
             connectingPeerID = null;
             isConnected = true;
             connectedPeerID = peerID;
 
             registerDiscoveredPeer(peerID, 'laptop', peerName);
             playChime('connect');
-            updateRadarStatus("Connected • P2P Linked");
-            const chatStatus = document.getElementById('chat-peer-status');
-            if (chatStatus) chatStatus.innerText = `Connected to ${peerName || ('#' + peerID)} • WebRTC P2P`;
+            updateRadarStatus("Direct LAN Linked");
 
             const dot = document.getElementById('conn-status-dot');
             if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
 
-            renderRadarPeers();
-            showToast(`Directly Paired with #${peerID}!`, "emerald");
+            const myAvatar = document.getElementById('my-avatar-ring');
+            if (myAvatar) myAvatar.className = "w-12 h-12 rounded-full glass-panel border-2 border-emerald-500 bg-emerald-500/10 flex items-center justify-center shadow-lg text-emerald-500";
 
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
-            heartbeatInterval = setInterval(() => {
-                if (isConnected && activeDataConn && activeDataConn.open) {
-                    try { activeDataConn.send({ type: 'ping' }); } catch(e) {}
-                }
-            }, 3000);
+            renderRadarPeers();
+            showToast(`Connected to #${peerID}!`, "emerald");
+
+            startDirectLanHeartbeat();
 
             if (pendingFileQueue.length > 0 && !isTransferring) {
+                showToast("Starting pending transfers...", "lime");
                 processNextFileInQueue();
             }
         }
 
+        function startDirectLanHeartbeat() {
+            if (dataChannelHeartbeat) clearInterval(dataChannelHeartbeat);
+            dataChannelHeartbeat = setInterval(() => {
+                if (isConnected && activeDataConn && activeDataConn.open) {
+                    sendControlMessage(activeDataConn, { type: 'direct_lan_ping' });
+                }
+            }, 3000);
+        }
+
         function disconnectPeer(notifyRemote = true) {
             if (notifyRemote && activeDataConn && activeDataConn.open) {
-                try { activeDataConn.send({ type: 'disconnect' }); } catch(e) {}
+                sendControlMessage(activeDataConn, { type: 'disconnect' });
             }
+
             if (activeDataConn) {
                 try { activeDataConn.close(); } catch(e) {}
                 activeDataConn = null;
             }
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
 
-            clearConnectionWatchdog();
+            if (dataChannelHeartbeat) {
+                clearInterval(dataChannelHeartbeat);
+                dataChannelHeartbeat = null;
+            }
+
             isConnected = false;
             connectingPeerID = null;
             connectedPeerID = null;
@@ -1205,17 +1348,20 @@
             const dot = document.getElementById('conn-status-dot');
             if (dot) dot.className = "w-2 h-2 rounded-full bg-slate-400";
 
+            const myAvatar = document.getElementById('my-avatar-ring');
+            if (myAvatar) myAvatar.className = "w-12 h-12 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow-lg text-slate-800 dark:text-white";
+
             releaseWakeLock();
             hideProgressUI();
-            updateRadarStatus("Online • Ready");
+            updateRadarStatus("Wi-Fi Direct Ready");
             renderRadarPeers();
-            showToast("Direct connection closed", "rose");
+            showToast("Session disconnected", "rose");
         }
 
         function acceptPairingRequest() {
             document.getElementById('pair-request-modal').classList.add('hidden');
             if (pendingPeerRequest && pendingPeerRequest.conn) {
-                pendingPeerRequest.conn.send({ type: 'pair_handshake_ack', senderID: myID, userName: myUserName });
+                sendControlMessage(pendingPeerRequest.conn, { type: 'pair_handshake_ack', senderID: myID, userName: myUserName });
                 finalizeConnection(pendingPeerRequest.senderID, pendingPeerRequest.userName);
             }
             pendingPeerRequest = null;
@@ -1224,34 +1370,214 @@
         function rejectPairingRequest() {
             document.getElementById('pair-request-modal').classList.add('hidden');
             if (pendingPeerRequest && pendingPeerRequest.conn) {
-                pendingPeerRequest.conn.send({ type: 'pair_handshake_reject', senderID: myID });
+                sendControlMessage(pendingPeerRequest.conn, { type: 'pair_handshake_reject', senderID: myID });
                 try { pendingPeerRequest.conn.close(); } catch(e) {}
             }
             pendingPeerRequest = null;
-            abortConnectionAttempt();
+            connectingPeerID = null;
+            updateRadarStatus("Online • Ready");
+            renderRadarPeers();
         }
 
-        function triggerFileUpload() {
-            if (!isConnected || !activeDataConn) {
-                openPairingModal();
-                showToast("Pair with a device to send files", "lime");
-                return;
+        async function handleFileOffer(data) {
+            const fileId = `${data.name}_${data.size}`;
+            incomingMeta = { ...data, fileId };
+            await requestWakeLock();
+
+            const partial = activePartialTransfers[fileId];
+            if (partial && partial.receivedSize > 0 && partial.receivedSize < data.size) {
+                receivedChunks = [...partial.chunks];
+                receivedSize = partial.receivedSize;
+                showToast(`Resuming from ${formatBytes(receivedSize)}...`, "lime");
+                
+                if (activeDataConn && activeDataConn.open) {
+                    sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: receivedSize });
+                }
+                showProgressUI(`Resuming: ${data.name}`, false, data.size);
+                updateProgressUI(receivedSize, data.size);
+            } else {
+                if (partial) {
+                    delete activePartialTransfers[fileId];
+                    removePartialFromDB(fileId);
+                }
+                receivedChunks = [];
+                receivedSize = 0;
+                diskWriteQueue = Promise.resolve();
+
+                // If file > 50MB and File System Access API is supported, prompt save location FIRST
+                if (data.size > DISK_STREAM_THRESHOLD && 'showSaveFilePicker' in window) {
+                    const diskPrompt = document.getElementById('disk-prompt-card');
+                    const diskFileInfo = document.getElementById('disk-prompt-file-info');
+                    if (diskFileInfo) diskFileInfo.innerText = `${data.name} (${formatBytes(data.size)})`;
+                    if (diskPrompt) diskPrompt.classList.remove('hidden');
+                    // DO NOT send 'accept' yet. The sender will wait until the disk stream is ready!
+                    showToast(`Large file: choose save location to begin receiving`, "lime");
+                } else {
+                    // Under 50MB or mobile: accept immediately into RAM
+                    if (activeDataConn && activeDataConn.open) {
+                        sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
+                    }
+                    showProgressUI(data.name, false, data.size);
+                    updateProgressUI(0, data.size);
+                }
             }
-            document.getElementById('file-input').click();
         }
 
-        function handleFolderClick(e) {
-            if (!isConnected || !activeDataConn) {
-                e.preventDefault();
-                openPairingModal();
-                showToast("Pair with a device to send files", "lime");
+        async function acceptDiskTransfer() {
+            const diskPrompt = document.getElementById('disk-prompt-card');
+            if (diskPrompt) diskPrompt.classList.add('hidden');
+
+            if (!incomingMeta) return;
+
+            try {
+                if ('showSaveFilePicker' in window) {
+                    const handle = await window.showSaveFilePicker({ suggestedName: incomingMeta.name });
+                    writableStream = await handle.createWritable();
+                    diskWriteQueue = Promise.resolve();
+                    
+                    showToast(`Streaming directly to device storage`, "emerald");
+                    showProgressUI(incomingMeta.name, false, incomingMeta.size);
+                    updateProgressUI(0, incomingMeta.size);
+
+                    // NOW signal sender to start streaming chunks directly to disk!
+                    if (activeDataConn && activeDataConn.open) {
+                        sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
+                    }
+                }
+            } catch (err) {
+                // If user cancels file picker dialog, gracefully fall back to RAM
+                skipDiskAndReceiveInRAM();
             }
+        }
+
+        function skipDiskAndReceiveInRAM() {
+            const diskPrompt = document.getElementById('disk-prompt-card');
+            if (diskPrompt) diskPrompt.classList.add('hidden');
+
+            writableStream = null;
+            receivedChunks = [];
+            receivedSize = 0;
+
+            if (incomingMeta) {
+                showProgressUI(incomingMeta.name, false, incomingMeta.size);
+                updateProgressUI(0, incomingMeta.size);
+                if (activeDataConn && activeDataConn.open) {
+                    sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
+                }
+            }
+        }
+
+        async function handleIncomingChunk(chunkBuffer) {
+            if (!incomingMeta) return;
+            
+            if (writableStream) {
+                // Queue sequential chunk writes to prevent stream collision
+                diskWriteQueue = diskWriteQueue.then(async () => {
+                    if (writableStream) {
+                        await writableStream.write(chunkBuffer);
+                    }
+                }).catch(() => {});
+            } else {
+                receivedChunks.push(chunkBuffer);
+            }
+            receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
+            
+            const now = performance.now();
+            if (now - lastUiUpdate > 60) {
+                lastUiUpdate = now;
+                updateProgressUI(receivedSize, incomingMeta.size);
+            }
+        }
+
+        async function handleTransferEnd() {
+            playChime('complete');
+            releaseWakeLock();
+            
+            const elapsedSec = Math.max(0.1, (performance.now() - transferStartTime) / 1000);
+            const avgSpeed = incomingMeta ? formatSpeed(incomingMeta.size / elapsedSec) : '';
+
+            if (incomingMeta) {
+                updateProgressUI(incomingMeta.size, incomingMeta.size);
+            }
+
+            if (incomingMeta && incomingMeta.fileId) {
+                delete activePartialTransfers[incomingMeta.fileId];
+                removePartialFromDB(incomingMeta.fileId);
+            }
+
+            if (writableStream) {
+                try {
+                    await diskWriteQueue;
+                    await writableStream.close();
+                } catch(e) {}
+                writableStream = null;
+                const fileObj = { 
+                    name: incomingMeta.name, 
+                    size: incomingMeta.size, 
+                    isDiskSaved: true, 
+                    isSent: false, 
+                    transferSpeed: avgSpeed,
+                    timestamp: Date.now() 
+                };
+                saveFileToDB(fileObj);
+                addFileToHistory(fileObj);
+            } else if (incomingMeta) {
+                saveReceivedFile(receivedChunks, incomingMeta.name, incomingMeta.mime, avgSpeed);
+            }
+
+            showToast(`Received ${incomingMeta ? incomingMeta.name : 'file'} at ${avgSpeed}!`, "emerald");
+
+            const fileLabel = document.getElementById('file-info-label');
+            if (fileLabel && incomingMeta) {
+                fileLabel.innerText = `Completed (${avgSpeed})`;
+            }
+
+            incomingMeta = null;
+            receivedChunks = [];
+            receivedSize = 0;
+
+            hideProgressUI(false);
+            resetFileInputs();
+        }
+
+        function preservePartialState() {
+            if (incomingMeta && incomingMeta.fileId && receivedSize > 0 && receivedSize < incomingMeta.size) {
+                const fileId = incomingMeta.fileId;
+                activePartialTransfers[fileId] = {
+                    meta: incomingMeta,
+                    chunks: [...receivedChunks],
+                    receivedSize: receivedSize
+                };
+                savePartialToDB(fileId, incomingMeta, [...receivedChunks], receivedSize);
+                showToast(`Paused at ${formatBytes(receivedSize)}. Re-pair to resume!`, "amber");
+            }
+
+            const targetFile = currentTransferFile || lastAttemptedFile;
+            if (targetFile) {
+                const exists = pendingFileQueue.some(f => f.name === targetFile.name && f.size === targetFile.size);
+                if (!exists) {
+                    pendingFileQueue.unshift(targetFile);
+                }
+            }
+        }
+
+        function handleFolderSelect(event) {
+            const files = Array.from(event.target.files);
+            if (files.length) queueFilesForTransfer(files);
+            resetFileInputs();
+        }
+
+        function resetFileInputs() {
+            const fileInput = document.getElementById('file-input');
+            const folderInput = document.getElementById('folder-input');
+            if (fileInput) fileInput.value = '';
+            if (folderInput) folderInput.value = '';
         }
 
         function queueFilesForTransfer(files) {
             if (!isConnected || !activeDataConn) {
                 openPairingModal();
-                showToast("Pair with a device first", "lime");
+                showToast("Please pair with a device first", "lime");
                 resetFileInputs();
                 return;
             }
@@ -1269,11 +1595,17 @@
                 return;
             }
 
+            if (!isConnected || !activeDataConn || !activeDataConn.open) {
+                showToast("Connection lost. Please re-pair.", "rose");
+                abortTransfer();
+                return;
+            }
+
             isTransferring = true;
             currentTransferFile = pendingFileQueue.shift();
             lastAttemptedFile = currentTransferFile;
             
-            showProgressUI(`Offering: ${currentTransferFile.name}`);
+            showProgressUI(currentTransferFile.name, true, currentTransferFile.size);
             const payloadMeta = { 
                 type: 'offer', 
                 name: currentTransferFile.name, 
@@ -1282,9 +1614,9 @@
             };
             
             try {
-                activeDataConn.send(payloadMeta);
+                sendControlMessage(activeDataConn, payloadMeta);
             } catch(err) {
-                showToast("Send error.", "rose");
+                showToast("Connection send error.", "rose");
                 preservePartialState();
                 abortTransfer();
             }
@@ -1292,19 +1624,19 @@
 
         async function startStreamingChunks(file, resumeOffset = 0) {
             await requestWakeLock();
-            showProgressUI(`${resumeOffset > 0 ? 'Resuming' : 'Sending'}: ${file.name}`);
+            showProgressUI(file.name, true, file.size);
             updateProgressUI(resumeOffset, file.size);
 
             let offset = resumeOffset;
-            const dataChannel = activeDataConn ? (activeDataConn.dataChannel || activeDataConn) : null;
-
-            if (dataChannel && 'bufferedAmountLowThreshold' in dataChannel) {
-                dataChannel.bufferedAmountLowThreshold = LOW_BUFFER;
+            const rawDC = activeDataConn ? (activeDataConn._dc || activeDataConn.dataChannel) : null;
+            if (rawDC) {
+                try { rawDC.binaryType = 'arraybuffer'; } catch(e) {}
+                if ('bufferedAmountLowThreshold' in rawDC) {
+                    try { rawDC.bufferedAmountLowThreshold = LOW_BUFFER; } catch(e) {}
+                }
             }
 
             currentChunkSize = DEFAULT_CHUNK_SIZE;
-            consecutiveFastDrains = 0;
-            consecutiveBackpressures = 0;
             updateChunkBadge(currentChunkSize);
 
             while (offset < file.size) {
@@ -1315,38 +1647,50 @@
                     return;
                 }
 
-                if (dataChannel && dataChannel.bufferedAmount > MAX_BUFFER) {
-                    consecutiveBackpressures++;
-                    consecutiveFastDrains = 0;
+                const currentBuffer = rawDC ? rawDC.bufferedAmount : 0;
 
-                    if (consecutiveBackpressures >= 2 && currentChunkSize > MIN_CHUNK_SIZE) {
-                        currentChunkSize = Math.max(MIN_CHUNK_SIZE, Math.floor(currentChunkSize / 1.5));
-                        updateChunkBadge(currentChunkSize);
-                        consecutiveBackpressures = 0;
-                    }
-
+                if (currentBuffer > MAX_BUFFER) {
                     await new Promise(resolve => {
-                        dataChannel.onbufferedamountlow = () => {
-                            dataChannel.onbufferedamountlow = null;
-                            resolve();
+                        let done = false;
+                        const drainHandler = () => {
+                            if (!done && (!rawDC || rawDC.bufferedAmount <= LOW_BUFFER)) {
+                                done = true;
+                                if (rawDC) rawDC.removeEventListener('bufferedamountlow', drainHandler);
+                                resolve();
+                            }
                         };
+
+                        if (rawDC) {
+                            rawDC.addEventListener('bufferedamountlow', drainHandler);
+                        }
+
+                        const timer = setInterval(() => {
+                            if (!rawDC || rawDC.bufferedAmount <= LOW_BUFFER) {
+                                if (!done) {
+                                    done = true;
+                                    clearInterval(timer);
+                                    if (rawDC) rawDC.removeEventListener('bufferedamountlow', drainHandler);
+                                    resolve();
+                                }
+                            }
+                        }, 10);
                     });
-                } else {
-                    consecutiveFastDrains++;
-                    if (consecutiveFastDrains >= 8 && currentChunkSize < MAX_CHUNK_SIZE) {
-                        currentChunkSize = Math.min(MAX_CHUNK_SIZE, Math.floor(currentChunkSize * 1.5));
-                        updateChunkBadge(currentChunkSize);
-                        consecutiveFastDrains = 0;
-                    }
                 }
 
                 const slice = file.slice(offset, offset + currentChunkSize);
                 try {
                     const chunkData = await slice.arrayBuffer();
-                    activeDataConn.send({ type: 'chunk', chunk: chunkData });
+
+                    // Send via active PeerJS connection for standard packet packing
+                    activeDataConn.send(chunkData);
 
                     offset += chunkData.byteLength;
-                    updateProgressUI(offset, file.size);
+                    
+                    const now = performance.now();
+                    if (now - lastUiUpdate > 60) {
+                        lastUiUpdate = now;
+                        updateProgressUI(offset, file.size);
+                    }
                 } catch(err) {
                     showToast("Transfer interrupted.", "rose");
                     preservePartialState();
@@ -1356,11 +1700,30 @@
                 }
             }
 
-            try { activeDataConn.send({ type: 'end' }); } catch(err) {}
+            // Await buffer queue to fully flush before signaling transfer completion
+            if (rawDC && rawDC.bufferedAmount > 0) {
+                await new Promise(resolve => {
+                    const drainTimer = setInterval(() => {
+                        if (!rawDC || rawDC.bufferedAmount === 0) {
+                            clearInterval(drainTimer);
+                            resolve();
+                        }
+                    }, 15);
+                });
+            }
+
+            updateProgressUI(file.size, file.size);
+
+            try {
+                sendControlMessage(activeDataConn, { type: 'end' });
+            } catch(err) {}
 
             playChime('complete');
             releaseWakeLock();
-            showToast(`${file.name} sent successfully!`, "emerald");
+
+            const elapsedSec = Math.max(0.1, (performance.now() - transferStartTime) / 1000);
+            const avgSpeed = formatSpeed(file.size / elapsedSec);
+            showToast(`${file.name} sent at ${avgSpeed}!`, "emerald");
 
             const fileObj = {
                 name: file.name,
@@ -1368,130 +1731,18 @@
                 mime: file.type || detectMimeByName(file.name),
                 blob: file,
                 url: URL.createObjectURL(file),
-                isSent: true
+                isSent: true,
+                transferSpeed: avgSpeed,
+                timestamp: Date.now()
             };
             saveFileToDB(fileObj);
             addFileToHistory(fileObj);
 
-            hideProgressUI();
+            hideProgressUI(false);
             currentTransferFile = null;
             lastAttemptedFile = null;
             resetFileInputs();
-            setTimeout(processNextFileInQueue, 150);
-        }
-
-        async function handleFileOffer(data) {
-            const fileId = `${data.name}_${data.size}`;
-            incomingMeta = { ...data, fileId };
-            await requestWakeLock();
-
-            const partial = activePartialTransfers[fileId];
-            if (partial && partial.receivedSize > 0 && partial.receivedSize < data.size) {
-                receivedChunks = [...partial.chunks];
-                receivedSize = partial.receivedSize;
-                showToast(`Resuming from ${formatBytes(receivedSize)}...`, "lime");
-                
-                if (activeDataConn && activeDataConn.open) {
-                    activeDataConn.send({ type: 'accept', resumeOffset: receivedSize });
-                }
-                showProgressUI(`Resuming: ${data.name}`);
-                updateProgressUI(receivedSize, data.size);
-            } 
-            else if (data.size > 50 * 1024 * 1024 && 'showSaveFilePicker' in window) {
-                if (partial) {
-                    delete activePartialTransfers[fileId];
-                    removePartialFromDB(fileId);
-                }
-                receivedChunks = [];
-                receivedSize = 0;
-                document.getElementById('disk-prompt-file-info').innerText = `${data.name} (${formatBytes(data.size)})`;
-                document.getElementById('disk-prompt-card').classList.remove('hidden');
-            } else {
-                if (partial) {
-                    delete activePartialTransfers[fileId];
-                    removePartialFromDB(fileId);
-                }
-                receivedChunks = [];
-                receivedSize = 0;
-                if (activeDataConn && activeDataConn.open) {
-                    activeDataConn.send({ type: 'accept', resumeOffset: 0 });
-                }
-                showProgressUI(`Receiving: ${data.name}`);
-                updateProgressUI(0, data.size);
-            }
-        }
-
-        async function acceptDiskTransfer() {
-            document.getElementById('disk-prompt-card').classList.add('hidden');
-            try {
-                const handle = await window.showSaveFilePicker({ suggestedName: incomingMeta.name });
-                writableStream = await handle.createWritable();
-                if (activeDataConn && activeDataConn.open) {
-                    activeDataConn.send({ type: 'accept', resumeOffset: 0 });
-                }
-                showProgressUI(`Saving to Disk: ${incomingMeta.name}`);
-            } catch (err) {
-                writableStream = null;
-                if (activeDataConn && activeDataConn.open) {
-                    activeDataConn.send({ type: 'accept', resumeOffset: 0 });
-                }
-                showProgressUI(`Receiving (RAM): ${incomingMeta.name}`);
-            }
-        }
-
-        async function handleIncomingChunk(chunkBuffer) {
-            if (writableStream) {
-                await writableStream.write(chunkBuffer);
-            } else {
-                receivedChunks.push(chunkBuffer);
-            }
-            receivedSize += chunkBuffer.byteLength || chunkBuffer.size || 0;
-            if (incomingMeta) updateProgressUI(receivedSize, incomingMeta.size);
-
-            if (incomingMeta && incomingMeta.fileId && receivedSize % (5 * 1024 * 1024) < currentChunkSize) {
-                savePartialToDB(incomingMeta.fileId, incomingMeta, [...receivedChunks], receivedSize);
-            }
-        }
-
-        async function handleTransferEnd() {
-            playChime('complete');
-            releaseWakeLock();
-            
-            if (incomingMeta && incomingMeta.fileId) {
-                delete activePartialTransfers[incomingMeta.fileId];
-                removePartialFromDB(incomingMeta.fileId);
-            }
-
-            if (writableStream) {
-                await writableStream.close();
-                writableStream = null;
-                const fileObj = { name: incomingMeta.name, size: incomingMeta.size, isDiskSaved: true, isSent: false, timestamp: Date.now() };
-                saveFileToDB(fileObj);
-                addFileToHistory(fileObj);
-            } else if (incomingMeta) {
-                saveReceivedFile(receivedChunks, incomingMeta.name, incomingMeta.mime);
-            }
-
-            showToast(`Finished receiving ${incomingMeta ? incomingMeta.name : 'file'}!`, "emerald");
-
-            incomingMeta = null;
-            receivedChunks = [];
-            receivedSize = 0;
-            hideProgressUI();
-            resetFileInputs();
-        }
-
-        function preservePartialState() {
-            if (incomingMeta && incomingMeta.fileId && receivedSize > 0 && receivedSize < incomingMeta.size) {
-                const fileId = incomingMeta.fileId;
-                activePartialTransfers[fileId] = {
-                    meta: incomingMeta,
-                    chunks: [...receivedChunks],
-                    receivedSize: receivedSize
-                };
-                savePartialToDB(fileId, incomingMeta, [...receivedChunks], receivedSize);
-                showToast(`Paused at ${formatBytes(receivedSize)}. Re-pair to resume!`, "amber");
-            }
+            setTimeout(processNextFileInQueue, 100);
         }
 
         function abortTransfer() {
@@ -1499,25 +1750,8 @@
             currentTransferFile = null;
             lastAttemptedFile = null;
             releaseWakeLock();
-            hideProgressUI();
+            hideProgressUI(true);
         }
-
-        function handleFolderSelect(event) {
-            const files = Array.from(event.target.files);
-            if (files.length) queueFilesForTransfer(files);
-            resetFileInputs();
-        }
-
-        function resetFileInputs() {
-            const fileInput = document.getElementById('file-input');
-            const folderInput = document.getElementById('folder-input');
-            if (fileInput) fileInput.value = '';
-            if (folderInput) folderInput.value = '';
-        }
-
-        let speedHistory = new Array(30).fill(0);
-        let lastTime = Date.now();
-        let lastBytes = 0;
 
         function drawSpeedChart() {
             const canvas = document.getElementById('speed-chart');
@@ -1528,10 +1762,11 @@
 
             ctx.clearRect(0, 0, w, h);
 
-            const maxSpeed = Math.max(...speedHistory, 1024 * 1024);
+            const maxSpeed = Math.max(...speedHistory, 512 * 1024);
             ctx.beginPath();
             ctx.strokeStyle = '#84cc16';
             ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
 
             const step = w / (speedHistory.length - 1);
             for (let i = 0; i < speedHistory.length; i++) {
@@ -1546,29 +1781,67 @@
             ctx.lineTo(0, h);
             ctx.closePath();
             const grad = ctx.createLinearGradient(0, 0, 0, h);
-            grad.addColorStop(0, 'rgba(132, 204, 22, 0.35)');
+            grad.addColorStop(0, 'rgba(132, 204, 22, 0.4)');
             grad.addColorStop(1, 'rgba(132, 204, 22, 0.0)');
             ctx.fillStyle = grad;
             ctx.fill();
         }
 
-        function showProgressUI(label) {
-            document.getElementById('progress-card').classList.remove('hidden');
-            document.getElementById('file-info-label').innerText = label;
-            lastTime = Date.now();
+        function showProgressUI(fileName, isSending = true, totalSize = 0) {
+            const card = document.getElementById('progress-card');
+            const fileLabel = document.getElementById('file-info-label');
+            const dirBadge = document.getElementById('transfer-direction-badge');
+            
+            if (!card) return;
+            card.classList.remove('hidden');
+
+            if (fileLabel) fileLabel.innerText = fileName || "Transferring...";
+            if (dirBadge) {
+                dirBadge.innerText = isSending ? "Sending" : "Receiving";
+                dirBadge.className = isSending 
+                    ? "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-lime-500/20 text-lime-600 dark:text-lime-400 border border-lime-500/30 flex-shrink-0"
+                    : "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0";
+            }
+
+            transferStartTime = performance.now();
+            transferPeakSpeed = 0;
+            lastTime = performance.now();
             lastBytes = 0;
             speedHistory.fill(0);
+
+            const etaLabel = document.getElementById('eta-label');
+            if (etaLabel) etaLabel.innerText = `ETA: Calculating...`;
+
+            drawSpeedChart();
         }
 
         function updateProgressUI(current, total) {
-            const now = Date.now();
+            const now = performance.now();
             const timeDiff = (now - lastTime) / 1000;
 
-            if (timeDiff >= 0.15) {
-                const bytesDiff = current - lastBytes;
+            if (timeDiff >= 0.08) {
+                const bytesDiff = Math.max(0, current - lastBytes);
                 const speedBytesPerSec = bytesDiff / timeDiff;
-                document.getElementById('speed-label').innerText = formatSpeed(speedBytesPerSec);
-                
+
+                if (speedBytesPerSec > transferPeakSpeed) {
+                    transferPeakSpeed = speedBytesPerSec;
+                }
+
+                const speedEl = document.getElementById('speed-label');
+                if (speedEl) speedEl.innerText = formatSpeed(speedBytesPerSec);
+
+                // Calculate ETA
+                const remainingBytes = Math.max(0, total - current);
+                const etaLabel = document.getElementById('eta-label');
+                if (etaLabel) {
+                    if (speedBytesPerSec > 1024) {
+                        const etaSec = Math.ceil(remainingBytes / speedBytesPerSec);
+                        etaLabel.innerText = etaSec > 60 ? `ETA: ${Math.floor(etaSec/60)}m ${etaSec%60}s` : `ETA: ${etaSec}s`;
+                    } else {
+                        etaLabel.innerText = current >= total ? "Done" : "ETA: --";
+                    }
+                }
+
                 speedHistory.push(speedBytesPerSec);
                 speedHistory.shift();
                 drawSpeedChart();
@@ -1578,19 +1851,36 @@
             }
 
             const percent = Math.min(100, Math.round((current / Math.max(total, 1)) * 100));
-            document.getElementById('progress-bar').style.width = percent + '%';
-            document.getElementById('percent-label').innerText = percent + '%';
-            document.getElementById('transferred-bytes').innerText = `${formatBytes(current)} / ${formatBytes(total)}`;
+            const progressBar = document.getElementById('progress-bar');
+            const percentLabel = document.getElementById('percent-label');
+            const bytesLabel = document.getElementById('transferred-bytes');
+
+            if (progressBar) progressBar.style.width = percent + '%';
+            if (percentLabel) percentLabel.innerText = percent + '%';
+            if (bytesLabel) bytesLabel.innerText = `${formatBytes(current)} / ${formatBytes(total)}`;
         }
 
-        function hideProgressUI() {
-            setTimeout(() => {
-                document.getElementById('progress-card').classList.add('hidden');
-                document.getElementById('progress-bar').style.width = '0%';
-            }, 800);
+        let hideTimeout = null;
+        function hideProgressUI(immediate = false) {
+            if (hideTimeout) clearTimeout(hideTimeout);
+            if (immediate) {
+                const card = document.getElementById('progress-card');
+                if (card) card.classList.add('hidden');
+                const pBar = document.getElementById('progress-bar');
+                if (pBar) pBar.style.width = '0%';
+                return;
+            }
+
+            // Keep completed summary visible for 3.5 seconds so users can read the final statistics
+            hideTimeout = setTimeout(() => {
+                const card = document.getElementById('progress-card');
+                if (card) card.classList.add('hidden');
+                const pBar = document.getElementById('progress-bar');
+                if (pBar) pBar.style.width = '0%';
+            }, 3500);
         }
 
-        function saveReceivedFile(chunks, name, mime) {
+        function saveReceivedFile(chunks, name, mime, transferSpeed = '') {
             const detectedMime = mime || detectMimeByName(name);
             const blob = new Blob(chunks, { type: detectedMime || 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
@@ -1601,7 +1891,9 @@
                 mime: detectedMime,
                 blob: blob,
                 url: url,
-                isSent: false
+                isSent: false,
+                transferSpeed: transferSpeed,
+                timestamp: Date.now()
             };
 
             saveFileToDB(fileObj);
@@ -1620,6 +1912,208 @@
             fileHistory.unshift(fileObj);
             selectedFileIndices.clear();
             renderFileHistory();
+        }
+
+        async function clearFileHistory() {
+            fileHistory = [];
+            selectedFileIndices.clear();
+            await clearDBFiles();
+            renderFileHistory();
+        }
+
+        function toggleSelectAll(checked) {
+            if (checked) {
+                fileHistory.forEach((_, idx) => selectedFileIndices.add(idx));
+            } else {
+                selectedFileIndices.clear();
+            }
+            renderFileHistory();
+        }
+
+        function toggleFileSelection(index, checked) {
+            if (checked) {
+                selectedFileIndices.add(index);
+            } else {
+                selectedFileIndices.delete(index);
+            }
+            updateBatchUI();
+        }
+
+        function updateBatchUI() {
+            const selectAllCb = document.getElementById('select-all-files');
+            const batchZipBtn = document.getElementById('batch-zip-btn');
+            const batchDlBtn = document.getElementById('batch-download-btn');
+            const batchDelBtn = document.getElementById('batch-delete-btn');
+            const zipCount = document.getElementById('selected-count-zip');
+            const dlCount = document.getElementById('selected-count-dl');
+
+            const count = selectedFileIndices.size;
+            const total = fileHistory.length;
+
+            if (selectAllCb) {
+                selectAllCb.checked = (total > 0 && count === total);
+                selectAllCb.classList.toggle('hidden', total === 0);
+            }
+
+            if (batchZipBtn && batchDlBtn && batchDelBtn) {
+                if (count > 0) {
+                    batchZipBtn.classList.remove('hidden');
+                    batchDlBtn.classList.remove('hidden');
+                    batchDelBtn.classList.remove('hidden');
+                    if (zipCount) zipCount.innerText = count;
+                    if (dlCount) dlCount.innerText = count;
+                } else {
+                    batchZipBtn.classList.add('hidden');
+                    batchDlBtn.classList.add('hidden');
+                    batchDelBtn.classList.add('hidden');
+                }
+            }
+        }
+
+        async function downloadSelectedAsZip() {
+            if (typeof JSZip === 'undefined') return showToast("ZIP engine loading...", "amber");
+
+            const indices = selectedFileIndices.size > 0 ? Array.from(selectedFileIndices) : fileHistory.map((_, i) => i);
+            if (indices.length === 0) return showToast("No files available to zip", "rose");
+
+            showToast(`Creating ZIP archive for ${indices.length} file(s)...`, "lime");
+
+            try {
+                const zip = new JSZip();
+                for (let i = 0; i < indices.length; i++) {
+                    const file = fileHistory[indices[i]];
+                    if (file) {
+                        if (file.blob) zip.file(file.name, file.blob);
+                        else if (file.url) {
+                            const res = await fetch(file.url);
+                            zip.file(file.name, await res.blob());
+                        }
+                    }
+                }
+
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `LimeShare_Archive_${Date.now()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+                showToast("ZIP archive downloaded!", "emerald");
+            } catch (err) {
+                showToast("Failed to create ZIP archive", "rose");
+            }
+        }
+
+        async function downloadSelectedFiles() {
+            if (selectedFileIndices.size === 0) return;
+            const indices = Array.from(selectedFileIndices);
+            showToast(`Downloading ${indices.length} file(s)...`, "emerald");
+
+            for (let i = 0; i < indices.length; i++) {
+                const file = fileHistory[indices[i]];
+                if (file && file.url) {
+                    const a = document.createElement('a');
+                    a.href = file.url;
+                    a.download = file.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    await new Promise(r => setTimeout(r, 250));
+                }
+            }
+        }
+
+        async function deleteSelectedFiles() {
+            if (selectedFileIndices.size === 0) return;
+            const count = selectedFileIndices.size;
+            
+            fileHistory = fileHistory.filter((_, idx) => !selectedFileIndices.has(idx));
+            selectedFileIndices.clear();
+            
+            if (db) {
+                try {
+                    const tx = db.transaction('files', 'readwrite');
+                    const store = tx.objectStore('files');
+                    store.clear();
+                    fileHistory.forEach(file => {
+                        store.add({
+                            name: file.name,
+                            size: file.size,
+                            mime: file.mime,
+                            blob: file.blob || null,
+                            isSent: file.isSent || false,
+                            isDiskSaved: file.isDiskSaved || false,
+                            timestamp: Date.now()
+                        });
+                    });
+                } catch(e) {}
+            }
+
+            renderFileHistory();
+            showToast(`Deleted ${count} file(s)`, "rose");
+        }
+
+        function renderFileHistory() {
+            const list = document.getElementById('file-list');
+            const countBadge = document.getElementById('history-badge-count');
+            if (!list) return;
+
+            list.innerHTML = '';
+            if (countBadge) {
+                countBadge.innerText = fileHistory.length;
+                countBadge.classList.toggle('hidden', fileHistory.length === 0);
+            }
+
+            if (fileHistory.length === 0) {
+                selectedFileIndices.clear();
+                updateBatchUI();
+                list.innerHTML = `<p id="empty-state" class="text-center text-xs text-slate-400 py-8 font-medium">No files sent or received yet</p>`;
+                return;
+            }
+
+            fileHistory.forEach((file, index) => {
+                const mime = file.mime || detectMimeByName(file.name);
+                const isMedia = mime && (mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/') || mime === 'application/pdf' || mime.startsWith('text/'));
+                const isChecked = selectedFileIndices.has(index);
+
+                const row = document.createElement('div');
+                row.className = `flex justify-between items-center p-3 glass-panel border rounded-2xl transition-all ${isChecked ? 'border-lime-500 bg-lime-500/10' : ''}`;
+                
+                let badgeLabel = file.isSent ? 'Sent' : (file.isDiskSaved ? 'Saved on Device' : 'Received');
+                let badgeColor = file.isSent 
+                    ? 'text-lime-600 bg-lime-500/10 border-lime-500/30' 
+                    : (file.isDiskSaved 
+                        ? 'text-sky-500 bg-sky-500/10 border-sky-500/30' 
+                        : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30');
+
+                row.innerHTML = `
+                    <div class="flex items-center gap-2.5 truncate mr-2">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleFileSelection(${index}, this.checked)" class="rounded w-4 h-4 accent-lime-500 cursor-pointer flex-shrink-0">
+                        <div class="truncate">
+                            <div class="flex items-center gap-2 truncate">
+                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badgeColor}">${badgeLabel}</span>
+                                <p class="text-xs font-bold text-slate-800 dark:text-white truncate">${escapeHtml(file.name)}</p>
+                            </div>
+                            <div class="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                                <span>${formatBytes(file.size)}</span>
+                                ${file.transferSpeed ? `<span class="text-lime-600 dark:text-lime-400 font-bold">• ${file.transferSpeed}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5 flex-shrink-0">
+                        ${(isMedia && file.url) ? `<button onclick="openMediaPreviewByIndex(${index})" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Preview</button>` : ''}
+                        ${file.url ? `<a href="${file.url}" download="${escapeHtml(file.name)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Save</a>` : ''}
+                        ${file.isDiskSaved ? `<span class="text-[10px] text-sky-500 font-bold px-2 py-1 bg-sky-500/10 rounded-lg flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> On Storage</span>` : ''}
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+
+            updateBatchUI();
+            lucide.createIcons();
         }
 
         function setupDragAndDrop() {
@@ -1651,300 +2145,80 @@
             }
         }
 
-        function handleClipKeyDown(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendLiveText();
-            }
-        }
+        function switchDockTab(tab) {
+            closeDrawers();
+            const btnRadar = document.getElementById('dock-btn-radar');
+            const btnHistory = document.getElementById('dock-btn-history');
+            const btnClip = document.getElementById('dock-btn-clip');
 
-        function handleClipKeyDown(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendLiveText();
-            }
-        }
+            btnRadar.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+            btnHistory.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+            btnClip.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
 
-        function handleChatTyping() {
-            if (!activeDataConn || !activeDataConn.open) return;
-            try { activeDataConn.send({ type: 'typing', active: true }); } catch(e) {}
-            clearTimeout(chatTypingTimer);
-            chatTypingTimer = setTimeout(() => {
-                try { activeDataConn.send({ type: 'typing', active: false }); } catch(e) {}
-            }, 900);
-        }
-
-        function setPeerTyping(active) {
-            const el = document.getElementById('typing-indicator');
-            if (el) el.classList.toggle('hidden', !active);
-        }
-
-        function openChatEmojiPicker() {
-            const el = document.getElementById('chat-emoji-picker');
-            if (el) el.classList.toggle('hidden');
-        }
-
-        function insertChatEmoji(emoji) {
-            const input = document.getElementById('clip-text-input');
-            if (!input) return;
-            const start = input.selectionStart || input.value.length;
-            const end = input.selectionEnd || input.value.length;
-            input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
-            input.focus();
-            input.selectionStart = input.selectionEnd = start + emoji.length;
-            handleChatTyping();
-        }
-
-        async function sendClipboardSnapshot() {
-            try {
-                if (!navigator.clipboard || !navigator.clipboard.readText) {
-                    showToast("Clipboard permission unavailable", "amber");
-                    return;
-                }
-                const text = await navigator.clipboard.readText();
-                if (!text.trim()) return showToast("Clipboard is empty", "amber");
-                const input = document.getElementById('clip-text-input');
-                if (input) {
-                    input.value = text;
-                    input.focus();
-                }
-            } catch(e) {
-                showToast("Clipboard permission denied", "rose");
-            }
-        }
-
-        function sendLiveText() {
-            const input = document.getElementById('clip-text-input');
-            const text = input ? input.value.trim() : '';
-            if (!text) return;
-
-            if (!activeDataConn || !activeDataConn.open) {
-                openPairingModal();
-                showToast("Pair with a device to chat", "lime");
-                return;
-            }
-
-            const messageId = 'm_' + Date.now() + '_' + Math.random().toString(16).slice(2, 8);
-            const msg = {
-                type: 'text_snippet',
-                messageId,
-                text,
-                timestamp: Date.now(),
-                messageType: detectChatMessageType(text),
-                replyTo: chatReplyTarget ? { id: chatReplyTarget.id, text: chatReplyTarget.text || '' } : null
-            };
-
-            try {
-                activeDataConn.send(msg);
-                addChatMessage({
-                    id: messageId,
-                    text,
-                    isSent: true,
-                    timestamp: msg.timestamp,
-                    messageType: msg.messageType,
-                    replyTo: msg.replyTo,
-                    status: 'sent'
-                }, true);
-                input.value = '';
-                cancelChatReply();
-                setPeerTyping(false);
-                try { activeDataConn.send({ type: 'typing', active: false }); } catch(e) {}
-                showToast("Message sent", "emerald");
-            } catch(e) {
-                showToast("Message could not be sent", "rose");
-            }
-        }
-
-        function detectChatMessageType(text) {
-            if (/^https?:\/\/\S+$/i.test(text)) return 'link';
-            if (text.includes('\n') || /^(const|let|var|function|class|import|SELECT|<|{|```)/i.test(text)) return 'code';
-            return 'text';
-        }
-
-        function saveChatMessageToDB(msg) {
-            if (!db || !db.objectStoreNames.contains('chat')) return;
-            try {
-                const tx = db.transaction('chat', 'readwrite');
-                tx.objectStore('chat').add({
-                    id: msg.id,
-                    text: msg.text || '',
-                    isSent: !!msg.isSent,
-                    timestamp: msg.timestamp || Date.now(),
-                    messageType: msg.messageType || 'text',
-                    replyTo: msg.replyTo || null,
-                    status: msg.status || 'sent',
-                    reaction: msg.reaction || null,
-                    audioUrl: msg.audioUrl || null,
-                    duration: msg.duration || 0
-                });
-            } catch(e) {}
-        }
-
-        function addChatMessage(msg, persist = true) {
-            const existing = chatMessages.findIndex(m => m.id === msg.id);
-            if (existing !== -1) {
-                chatMessages[existing] = { ...chatMessages[existing], ...msg };
+            if (tab === 'history') {
+                btnHistory.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+                document.getElementById('drawer-history').classList.remove('hidden');
+            } else if (tab === 'clip') {
+                btnClip.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+                document.getElementById('drawer-clip').classList.remove('hidden');
             } else {
-                chatMessages.push(msg);
-            }
-            chatMessages.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
-            if (persist) saveChatMessageToDB(msg);
-            renderChatHistory();
-        }
-
-        function renderChatHistory() {
-            const list = document.getElementById('chat-list');
-            const empty = document.getElementById('chat-empty');
-            if (!list) return;
-
-            if (!chatMessages.length) {
-                list.innerHTML = '';
-                if (empty) list.appendChild(empty);
-                return;
-            }
-
-            list.innerHTML = '';
-            chatMessages.forEach(msg => {
-                const row = document.createElement('div');
-                row.className = `chat-bubble ${msg.isSent ? 'sent' : 'received'}`;
-
-                const bubbleClass = msg.isSent
-                    ? 'bg-lime-500 text-white rounded-2xl rounded-br-md'
-                    : 'glass-panel text-slate-800 dark:text-white rounded-2xl rounded-bl-md border';
-
-                let body = '';
-                if (msg.messageType === 'voice' && msg.audioUrl) {
-                    body = `<audio src="${msg.audioUrl}" controls class="w-full max-w-[230px] h-9"></audio>
-                            <div class="text-[9px] mt-1 opacity-70">${Number(msg.duration || 0)}s voice note</div>`;
-                } else if (msg.messageType === 'link') {
-                    body = `<a class="chat-link text-xs" href="${escapeHtml(msg.text)}" target="_blank" rel="noopener noreferrer">${escapeHtml(msg.text)}</a>`;
-                } else if (msg.messageType === 'code') {
-                    body = `<div class="chat-code">${escapeHtml(msg.text)}</div>`;
-                } else {
-                    body = `<div class="text-xs whitespace-pre-wrap">${escapeHtml(msg.text)}</div>`;
-                }
-
-                const reply = msg.replyTo ? `<div class="mb-1 p-1.5 rounded-lg bg-black/10 text-[9px] opacity-80 truncate">↩ ${escapeHtml(msg.replyTo.text || '')}</div>` : '';
-                const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                const status = msg.isSent ? `<span>${msg.status === 'read' ? '✓✓' : '✓'}</span>` : '';
-                const reaction = msg.reaction ? `<button class="chat-reaction mt-1" onclick="applyChatReaction('${escapeHtml(msg.id)}', '${escapeHtml(msg.reaction)}', true)">${escapeHtml(msg.reaction)}</button>` : '';
-
-                row.innerHTML = `
-                    <div class="${bubbleClass} px-3 py-2 shadow-sm">
-                        ${reply}${body}
-                        <div class="chat-meta justify-end">
-                            <span>${time}</span>${status}
-                            <button onclick="replyToChatMessage('${escapeHtml(msg.id)}')" title="Reply">↩</button>
-                            <button onclick="applyChatReaction('${escapeHtml(msg.id)}','❤️',true)" title="React">♡</button>
-                            <button onclick="copyChatMessage('${escapeHtml(msg.id)}')" title="Copy">⧉</button>
-                        </div>
-                        ${reaction}
-                    </div>`;
-                list.appendChild(row);
-            });
-            requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
-        }
-
-        function replyToChatMessage(id) {
-            const msg = chatMessages.find(m => m.id === id);
-            if (!msg) return;
-            chatReplyTarget = msg;
-            const bar = document.getElementById('chat-reply-bar');
-            const txt = document.getElementById('chat-reply-text');
-            if (bar) bar.classList.remove('hidden');
-            if (txt) txt.innerText = msg.text || 'Voice note';
-            const input = document.getElementById('clip-text-input');
-            if (input) input.focus();
-        }
-
-        function cancelChatReply() {
-            chatReplyTarget = null;
-            const bar = document.getElementById('chat-reply-bar');
-            if (bar) bar.classList.add('hidden');
-        }
-
-        function copyChatMessage(id) {
-            const msg = chatMessages.find(m => m.id === id);
-            if (msg && msg.text) copyToClipboard(msg.text);
-        }
-
-        function markChatMessageRead(id) {
-            const msg = chatMessages.find(m => m.id === id);
-            if (!msg) return;
-            msg.status = 'read';
-            chatLastReadId = id;
-            renderChatHistory();
-        }
-
-        function applyChatReaction(id, reaction = '❤️', sendRemote = true) {
-            const msg = chatMessages.find(m => m.id === id);
-            if (!msg) return;
-            msg.reaction = msg.reaction === reaction ? null : reaction;
-            renderChatHistory();
-
-            if (db && db.objectStoreNames.contains('chat')) {
-                try {
-                    const tx = db.transaction('chat', 'readwrite');
-                    tx.objectStore('chat').put({
-                        ...msg,
-                        text: msg.text || '',
-                        timestamp: msg.timestamp || Date.now()
-                    });
-                } catch(e) {}
-            }
-
-            if (sendRemote && activeDataConn && activeDataConn.open) {
-                try { activeDataConn.send({ type:'message_reaction', messageId:id, reaction: msg.reaction || '' }); } catch(e) {}
+                btnRadar.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
             }
         }
 
-        function clearChatHistory() {
-            chatMessages = [];
-            chatReplyTarget = null;
-            renderChatHistory();
-            if (db && db.objectStoreNames.contains('chat')) {
-                try {
-                    const tx = db.transaction('chat', 'readwrite');
-                    tx.objectStore('chat').clear();
-                } catch(e) {}
-            }
-            showToast("Chat history cleared on this device", "rose");
+        function closeDrawers() {
+            document.getElementById('drawer-history').classList.add('hidden');
+            document.getElementById('drawer-clip').classList.add('hidden');
         }
 
-        function renderTextSnippet(text, isSent = false, saveToDatabase = true) {
-            if (saveToDatabase) {
-                saveSnippetToDB({ text, isSent, timestamp: Date.now() });
-            }
-
-            const list = document.getElementById('snippet-list');
-            const emptyState = document.getElementById('empty-snippets');
-            if (emptyState) emptyState.remove();
-
-            const row = document.createElement('div');
-            row.className = "p-3 glass-panel border rounded-2xl space-y-1.5";
-            row.innerHTML = `
-                <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 font-mono">
-                    <span>${isSent ? 'Sent Snippet' : 'Received Snippet'}</span>
-                    <button onclick="copyToClipboard('${escapeHtml(text)}')" class="text-lime-600 dark:text-lime-400 hover:underline">Copy</button>
-                </div>
-                <p class="text-xs font-mono text-slate-800 dark:text-white whitespace-pre-wrap break-all">${escapeHtml(text)}</p>
-            `;
-            list.prepend(row);
+        function openPairingModal() {
+            document.getElementById('pair-modal').classList.remove('hidden');
         }
 
-        function clearSnippetHistory() {
-            snippetHistory = [];
-            if (db) {
-                try {
-                    const tx = db.transaction('snippets', 'readwrite');
-                    tx.objectStore('snippets').clear();
-                } catch(e) {}
+        function closePairingModal() {
+            document.getElementById('pair-modal').classList.add('hidden');
+            stopQRScanner();
+        }
+
+        function openHowToUseModal() {
+            document.getElementById('how-to-use-modal').classList.remove('hidden');
+        }
+
+        function closeHowToUseModal() {
+            document.getElementById('how-to-use-modal').classList.add('hidden');
+        }
+
+        function handleClipKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendLiveText();
             }
-            const list = document.getElementById('snippet-list');
-            if (list) {
-                list.innerHTML = `<p id="empty-snippets" class="text-center text-xs text-slate-400 py-4 font-medium">No snippets shared yet</p>`;
+        }
+
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecordingVoice = false;
+        let voiceTimerInterval = null;
+        let voiceRecordStartTime = 0;
+
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
             }
-            showToast("Snippet log cleared", "rose");
+            return btoa(binary);
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
         }
 
         async function toggleVoiceRecording() {
@@ -1953,12 +2227,6 @@
             const label = document.getElementById('voice-rec-label');
 
             if (!isRecordingVoice) {
-                if (!isConnected || !activeDataConn || !activeDataConn.open) {
-                    openPairingModal();
-                    showToast("Pair with a device to send voice notes", "lime");
-                    return;
-                }
-
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     audioChunks = [];
@@ -1971,10 +2239,16 @@
                     mediaRecorder.onstop = async () => {
                         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                         const arrayBuffer = await audioBlob.arrayBuffer();
+                        const base64Audio = arrayBufferToBase64(arrayBuffer);
                         const duration = Math.max(1, Math.round((Date.now() - voiceRecordStartTime) / 1000));
 
                         if (activeDataConn && activeDataConn.open) {
-                            activeDataConn.send({ type: 'voice_snippet', messageId: 'v_' + Date.now() + '_' + Math.random().toString(16).slice(2,7), audio: arrayBuffer, duration: duration, mime: 'audio/webm', timestamp: Date.now() });
+                            sendControlMessage(activeDataConn, { 
+                                type: 'voice_snippet', 
+                                audio: base64Audio, 
+                                duration: duration, 
+                                mime: 'audio/webm' 
+                            });
                         }
 
                         renderVoiceSnippet(URL.createObjectURL(audioBlob), true, duration);
@@ -1997,7 +2271,7 @@
 
                     showToast("Voice Talk recording started...", "lime");
                 } catch (err) {
-                    showToast("Microphone permission required", "rose");
+                    showToast("Microphone permission required for Voice Talk", "rose");
                 }
             } else {
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -2036,644 +2310,55 @@
             lucide.createIcons();
         }
 
-        function initDB() {
-            return new Promise((resolve) => {
-                try {
-                    const req = indexedDB.open('LimeShareLocalV7', 1);
-                    req.onupgradeneeded = (e) => {
-                        const database = e.target.result;
-                        if (!database.objectStoreNames.contains('files')) {
-                            database.createObjectStore('files', { keyPath: 'id', autoIncrement: true });
-                        }
-                        if (!database.objectStoreNames.contains('snippets')) {
-                            database.createObjectStore('snippets', { keyPath: 'id', autoIncrement: true });
-                        }
-                        if (!database.objectStoreNames.contains('chat')) {
-                            database.createObjectStore('chat', { keyPath: 'id', autoIncrement: true });
-                        }
-                        if (!database.objectStoreNames.contains('partials')) {
-                            database.createObjectStore('partials', { keyPath: 'fileId' });
-                        }
-                    };
-                    req.onsuccess = (e) => {
-                        db = e.target.result;
-                        loadHistoryFromDB();
-                        resolve(db);
-                    };
-                    req.onerror = () => resolve(null);
-                } catch (err) {
-                    resolve(null);
-                }
-            });
-        }
-
-        function saveFileToDB(fileObj) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('files', 'readwrite');
-                tx.objectStore('files').add({
-                    name: fileObj.name,
-                    size: fileObj.size,
-                    mime: fileObj.mime,
-                    blob: fileObj.blob || null,
-                    isSent: fileObj.isSent || false,
-                    isDiskSaved: fileObj.isDiskSaved || false,
-                    timestamp: Date.now()
-                });
-            } catch(e) {}
-        }
-
-        function saveSnippetToDB(snippetObj) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('snippets', 'readwrite');
-                tx.objectStore('snippets').add(snippetObj);
-            } catch(e) {}
-        }
-
-        function savePartialToDB(fileId, meta, chunks, receivedSize) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('partials', 'readwrite');
-                tx.objectStore('partials').put({
-                    fileId: fileId,
-                    meta: meta,
-                    chunks: chunks,
-                    receivedSize: receivedSize,
-                    timestamp: Date.now()
-                });
-            } catch(e) {}
-        }
-
-        function removePartialFromDB(fileId) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('partials', 'readwrite');
-                tx.objectStore('partials').delete(fileId);
-            } catch(e) {}
-        }
-
-        function loadHistoryFromDB() {
-            if (!db) return;
-            try {
-                const fileTx = db.transaction('files', 'readonly');
-                const fileReq = fileTx.objectStore('files').getAll();
-                fileReq.onsuccess = () => {
-                    fileHistory = (fileReq.result || []).map(f => ({
-                        name: f.name,
-                        size: f.size,
-                        mime: f.mime,
-                        url: f.blob ? URL.createObjectURL(f.blob) : null,
-                        isSent: f.isSent,
-                        isDiskSaved: f.isDiskSaved
-                    })).reverse();
-                    renderFileHistory();
-                };
-
-                const snippetTx = db.transaction('snippets', 'readonly');
-                const snippetReq = snippetTx.objectStore('snippets').getAll();
-                snippetReq.onsuccess = () => {
-                    snippetHistory = (snippetReq.result || []).reverse();
-                    snippetHistory.forEach(s => renderTextSnippet(s.text, s.isSent, false));
-                };
-
-                if (db.objectStoreNames.contains('chat')) {
-                    const chatTx = db.transaction('chat', 'readonly');
-                    const chatReq = chatTx.objectStore('chat').getAll();
-                    chatReq.onsuccess = () => {
-                        chatMessages = (chatReq.result || []).sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
-                        renderChatHistory();
-                    };
-                }
-            } catch(e) {}
-        }
-
-        function renderFileHistory() {
-            const list = document.getElementById('file-list');
-            const countBadge = document.getElementById('history-badge-count');
-            if (!list) return;
-
-            list.innerHTML = '';
-            if (countBadge) {
-                countBadge.innerText = fileHistory.length;
-                countBadge.classList.toggle('hidden', fileHistory.length === 0);
-            }
-
-            if (fileHistory.length === 0) {
-                list.innerHTML = `<p id="empty-state" class="text-center text-xs text-slate-400 py-8 font-medium">No files sent or received yet</p>`;
+        function sendLiveText() {
+            const input = document.getElementById('clip-text-input');
+            const text = input.value.trim();
+            if (!text) return;
+            if (!isConnected || !activeDataConn || !activeDataConn.open) {
+                openPairingModal();
+                showToast("Pair with a device to send snippets", "lime");
                 return;
             }
 
-            fileHistory.forEach((file, index) => {
-                const mime = file.mime || detectMimeByName(file.name);
-                const isMedia = mime && (mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/') || mime === 'application/pdf' || mime.startsWith('text/'));
-                const isChecked = selectedFileIndices.has(index);
-
-                const row = document.createElement('div');
-                row.className = `flex justify-between items-center p-3 glass-panel border rounded-2xl transition-all ${isChecked ? 'border-lime-500 bg-lime-500/10' : ''}`;
-                
-                let badgeLabel = file.isSent ? 'Sent' : 'Received';
-                let badgeColor = file.isSent ? 'text-lime-600 bg-lime-500/10 border-lime-500/30' : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30';
-
-                row.innerHTML = `
-                    <div class="flex items-center gap-2.5 truncate mr-2">
-                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleFileSelection(${index}, this.checked)" class="rounded w-4 h-4 accent-lime-500 cursor-pointer flex-shrink-0">
-                        <div class="truncate">
-                            <div class="flex items-center gap-2 truncate">
-                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badgeColor}">${badgeLabel}</span>
-                                <p class="text-xs font-bold text-slate-800 dark:text-white truncate">${escapeHtml(file.name)}</p>
-                            </div>
-                            <p class="text-[10px] text-slate-400 font-mono mt-0.5">${formatBytes(file.size)}</p>
-                        </div>
-                    </div>
-                    <div class="flex gap-1.5 flex-shrink-0">
-                        ${(isMedia && file.url) ? `<button onclick="openMediaPreviewByIndex(${index})" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Preview</button>` : ''}
-                        ${file.url ? `<a href="${file.url}" download="${escapeHtml(file.name)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Save</a>` : ''}
-                    </div>
-                `;
-                list.appendChild(row);
-            });
-
-            updateBatchUI();
+            sendControlMessage(activeDataConn, { type: 'text_snippet', text: text });
+            renderTextSnippet(text, true, true);
+            input.value = '';
         }
 
-        function toggleFileSelection(index, checked) {
-            if (checked) selectedFileIndices.add(index);
-            else selectedFileIndices.delete(index);
-            updateBatchUI();
-        }
-
-        function toggleSelectAll(checked) {
-            if (checked) fileHistory.forEach((_, idx) => selectedFileIndices.add(idx));
-            else selectedFileIndices.clear();
-            renderFileHistory();
-        }
-
-        function updateBatchUI() {
-            const selectAllCb = document.getElementById('select-all-files');
-            const batchZipBtn = document.getElementById('batch-zip-btn');
-            const batchDlBtn = document.getElementById('batch-download-btn');
-            const batchDelBtn = document.getElementById('batch-delete-btn');
-            const zipCount = document.getElementById('selected-count-zip');
-            const dlCount = document.getElementById('selected-count-dl');
-
-            const count = selectedFileIndices.size;
-            const total = fileHistory.length;
-
-            if (selectAllCb) {
-                selectAllCb.checked = (total > 0 && count === total);
-                selectAllCb.classList.toggle('hidden', total === 0);
+        function renderTextSnippet(text, isSent = false, saveToDatabase = true) {
+            if (saveToDatabase) {
+                saveSnippetToDB({ text, isSent, timestamp: Date.now() });
             }
 
-            if (batchZipBtn && batchDlBtn && batchDelBtn) {
-                if (count > 0) {
-                    batchZipBtn.classList.remove('hidden');
-                    batchDlBtn.classList.remove('hidden');
-                    batchDelBtn.classList.remove('hidden');
-                    if (zipCount) zipCount.innerText = count;
-                    if (dlCount) dlCount.innerText = count;
-                } else {
-                    batchZipBtn.classList.add('hidden');
-                    batchDlBtn.classList.add('hidden');
-                    batchDelBtn.classList.add('hidden');
-                }
-            }
+            const list = document.getElementById('snippet-list');
+            const emptyState = document.getElementById('empty-snippets');
+            if (emptyState) emptyState.remove();
+
+            const row = document.createElement('div');
+            row.className = "p-3 glass-panel border rounded-2xl space-y-1.5";
+            row.innerHTML = `
+                <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 font-mono">
+                    <span>${isSent ? 'Sent Snippet' : 'Received Snippet'}</span>
+                    <button onclick="copyToClipboard('${escapeHtml(text)}')" class="text-lime-600 dark:text-lime-400 hover:underline">Copy</button>
+                </div>
+                <p class="text-xs font-mono text-slate-800 dark:text-white whitespace-pre-wrap break-all">${escapeHtml(text)}</p>
+            `;
+            list.prepend(row);
         }
 
-        async function downloadSelectedAsZip() {
-            if (typeof JSZip === 'undefined') return showToast("ZIP engine loading...", "amber");
-            const indices = selectedFileIndices.size > 0 ? Array.from(selectedFileIndices) : fileHistory.map((_, i) => i);
-            if (indices.length === 0) return showToast("No files available to zip", "rose");
-
-            showToast(`Creating ZIP archive for ${indices.length} file(s)...`, "lime");
-            try {
-                const zip = new JSZip();
-                for (let i = 0; i < indices.length; i++) {
-                    const file = fileHistory[indices[i]];
-                    if (file) {
-                        if (file.blob) zip.file(file.name, file.blob);
-                        else if (file.url) {
-                            const res = await fetch(file.url);
-                            zip.file(file.name, await res.blob());
-                        }
-                    }
-                }
-                const zipBlob = await zip.generateAsync({ type: "blob" });
-                const url = URL.createObjectURL(zipBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `LimeShare_${Date.now()}.zip`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(url), 2000);
-                showToast("ZIP archive downloaded!", "emerald");
-            } catch (err) {
-                showToast("Failed to create ZIP archive", "rose");
-            }
-        }
-
-        async function downloadSelectedFiles() {
-            if (selectedFileIndices.size === 0) return;
-            const indices = Array.from(selectedFileIndices);
-            for (let i = 0; i < indices.length; i++) {
-                const file = fileHistory[indices[i]];
-                if (file && file.url) {
-                    const a = document.createElement('a');
-                    a.href = file.url;
-                    a.download = file.name;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    await new Promise(r => setTimeout(r, 200));
-                }
-            }
-        }
-
-        function deleteSelectedFiles() {
-            if (selectedFileIndices.size === 0) return;
-            fileHistory = fileHistory.filter((_, idx) => !selectedFileIndices.has(idx));
-            selectedFileIndices.clear();
+        function clearSnippetHistory() {
+            snippetHistory = [];
             if (db) {
                 try {
-                    const tx = db.transaction('files', 'readwrite');
-                    const store = tx.objectStore('files');
-                    store.clear();
-                    fileHistory.forEach(file => {
-                        store.add({
-                            name: file.name,
-                            size: file.size,
-                            mime: file.mime,
-                            blob: file.blob || null,
-                            isSent: file.isSent || false,
-                            isDiskSaved: file.isDiskSaved || false,
-                            timestamp: Date.now()
-                        });
-                    });
+                    const tx = db.transaction('snippets', 'readwrite');
+                    tx.objectStore('snippets').clear();
                 } catch(e) {}
             }
-            renderFileHistory();
-            showToast("Selected files deleted", "rose");
-        }
-
-        function clearFileHistory() {
-            fileHistory = [];
-            selectedFileIndices.clear();
-            if (db) {
-                try {
-                    const tx = db.transaction('files', 'readwrite');
-                    tx.objectStore('files').clear();
-                } catch(e) {}
+            const list = document.getElementById('snippet-list');
+            if (list) {
+                list.innerHTML = `<p id="empty-snippets" class="text-center text-xs text-slate-400 py-4 font-medium">No snippets shared yet</p>`;
             }
-            renderFileHistory();
-            showToast("File history cleared", "rose");
-        }
-
-        function playChime(type) {
-            if (isAudioMuted) return;
-            const now = Date.now();
-            if (type === 'complete' && (now - lastChimeTime < 2000)) return;
-            if (type === 'complete') lastChimeTime = now;
-
-            try {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                if (!AudioCtx) return;
-                const ctx = new AudioCtx();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-
-                const t = ctx.currentTime;
-                if (type === 'connect') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(523.25, t);
-                    osc.frequency.exponentialRampToValueAtTime(659.25, t + 0.12);
-                    gain.gain.setValueAtTime(0.06, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-                    osc.start(t);
-                    osc.stop(t + 0.25);
-                } else if (type === 'complete') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(587.33, t);
-                    osc.frequency.setValueAtTime(880.00, t + 0.08);
-                    gain.gain.setValueAtTime(0.05, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-                    osc.start(t);
-                    osc.stop(t + 0.3);
-                } else if (type === 'text') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(800, t);
-                    gain.gain.setValueAtTime(0.04, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-                    osc.start(t);
-                    osc.stop(t + 0.12);
-                }
-            } catch(e) {}
-        }
-
-        function initTheme() {
-            const saved = localStorage.getItem('limeshare_theme') || 'lime';
-            changeTheme(saved, false);
-            updateAudioToggleUI();
-        }
-
-        function changeTheme(themeName, showToastMsg = true) {
-            document.documentElement.setAttribute('data-theme', themeName);
-            if (themeName === 'dark-radar' || themeName === 'cyber') {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-            localStorage.setItem('limeshare_theme', themeName);
-
-            const iconEl = document.getElementById('theme-icon');
-            if (iconEl) {
-                if (themeName === 'lime') iconEl.setAttribute('data-lucide', 'sun');
-                else if (themeName === 'dark-radar') iconEl.setAttribute('data-lucide', 'radar');
-                else if (themeName === 'cyber') iconEl.setAttribute('data-lucide', 'zap');
-                lucide.createIcons();
-            }
-
-            if (showToastMsg) showToast(`Theme: ${themeName.toUpperCase()}`, "lime");
-        }
-
-        function cycleTheme() {
-            const themes = ['lime', 'dark-radar', 'cyber'];
-            const current = localStorage.getItem('limeshare_theme') || 'lime';
-            const nextIdx = (themes.indexOf(current) + 1) % themes.length;
-            changeTheme(themes[nextIdx], true);
-        }
-
-        function toggleAudioMute() {
-            isAudioMuted = !isAudioMuted;
-            localStorage.setItem('limeshare_audio_muted', isAudioMuted ? 'true' : 'false');
-            updateAudioToggleUI();
-            showToast(isAudioMuted ? "Audio Muted" : "Audio Enabled", isAudioMuted ? "amber" : "emerald");
-        }
-
-        function updateAudioToggleUI() {
-            const on = document.getElementById('audio-icon-on');
-            const off = document.getElementById('audio-icon-off');
-            if (on && off) {
-                on.classList.toggle('hidden', isAudioMuted);
-                off.classList.toggle('hidden', !isAudioMuted);
-            }
-        }
-
-        function switchDockTab(tab) {
-            closeDrawers();
-            const btnMain = document.getElementById('dock-btn-main');
-            const btnHist = document.getElementById('dock-btn-history');
-            const btnClip = document.getElementById('dock-btn-clip');
-
-            btnMain.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
-            btnHist.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
-            btnClip.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
-
-            if (tab === 'history') {
-                btnHist.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
-                document.getElementById('drawer-history').classList.remove('hidden');
-            } else if (tab === 'clip') {
-                btnClip.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
-                document.getElementById('drawer-clip').classList.remove('hidden');
-            } else {
-                btnMain.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
-            }
-        }
-
-        function closeDrawers() {
-            document.getElementById('drawer-history').classList.add('hidden');
-            document.getElementById('drawer-clip').classList.add('hidden');
-        }
-
-        function openPairingModal() {
-            document.getElementById('pair-modal').classList.remove('hidden');
-        }
-
-        function closePairingModal() {
-            document.getElementById('pair-modal').classList.add('hidden');
-            stopQRScanner();
-        }
-
-        function openGuideModal() {
-            document.getElementById('guide-modal').classList.remove('hidden');
-        }
-
-        function closeGuideModal() {
-            document.getElementById('guide-modal').classList.add('hidden');
-        }
-
-        function signalBytesToBase64(bytes) {
-            let binary = '';
-            const chunk = 0x8000;
-            for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-            return btoa(binary);
-        }
-
-        function base64ToBytes(base64) {
-            const binary = atob(base64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            return bytes;
-        }
-
-        async function encodeSignalQR(obj) {
-            const json = JSON.stringify(obj);
-            if ('CompressionStream' in window) {
-                const cs = new CompressionStream('deflate-raw');
-                const writer = cs.writable.getWriter();
-                writer.write(new TextEncoder().encode(json));
-                writer.close();
-                const compressed = new Uint8Array(await new Response(cs.readable).arrayBuffer());
-                return 'LS1.' + signalBytesToBase64(compressed);
-            }
-            return 'LS0.' + btoa(unescape(encodeURIComponent(json)));
-        }
-
-        async function decodeSignalQR(text) {
-            const raw = (text || '').trim();
-            if (!raw) throw new Error('Empty QR data');
-            if (raw.startsWith('LS1.')) {
-                if (!('DecompressionStream' in window)) throw new Error('This browser cannot decode the compressed QR');
-                const ds = new DecompressionStream('deflate-raw');
-                const writer = ds.writable.getWriter();
-                writer.write(base64ToBytes(raw.slice(4)));
-                writer.close();
-                const json = await new Response(ds.readable).text();
-                return JSON.parse(json);
-            }
-            if (raw.startsWith('LS0.')) return JSON.parse(decodeURIComponent(escape(atob(raw.slice(4)))));
-            return decodeSignal(raw);
-        }
-
-        async function showSignalQR(elementId, payload) {
-            const el = document.getElementById(elementId);
-            if (!el || !window.QRCode) throw new Error('QR generator is unavailable');
-            el.innerHTML = '';
-            el.classList.remove('hidden');
-            new QRCode(el, { text: payload, width: 190, height: 190, correctLevel: QRCode.CorrectLevel.M });
-        }
-
-        async function startOfflineOffer() {
-            try {
-                if (!window.RTCPeerConnection) throw new Error('WebRTC is not supported by this browser');
-                const pc = makeOfflinePC('offer');
-                const channel = pc.createDataChannel('limeshare', { ordered: true });
-                setupOfflineDataConnection(channel, true);
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                await waitForIceComplete(pc);
-                const signal = { type: 'offer', sdp: pc.localDescription.sdp, id: myID, name: myUserName };
-                const payload = await encodeSignalQR(signal);
-                document.getElementById('offline-offer').value = payload;
-                await showSignalQR('offline-offer-qr', payload);
-                document.getElementById('copy-offer-fallback').classList.remove('hidden');
-                document.getElementById('offline-pair-status').innerText = 'Show this QR to the other device. They scan it and get a reply QR.';
-                showToast('Connection QR ready', 'lime');
-            } catch (e) {
-                showToast(`Could not create QR: ${e.message}`, 'rose');
-            }
-        }
-
-        async function createOfflineAnswerFromSignal(signal) {
-            if (signal.type !== 'offer') throw new Error('That QR is not a connection offer');
-            const pc = makeOfflinePC('answer');
-            await pc.setRemoteDescription({ type: 'offer', sdp: signal.sdp });
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            await waitForIceComplete(pc);
-            const answerSignal = { type: 'answer', sdp: pc.localDescription.sdp, id: myID, name: myUserName };
-            const payload = await encodeSignalQR(answerSignal);
-            document.getElementById('offline-answer').value = payload;
-            await showSignalQR('offline-answer-qr', payload);
-            document.getElementById('offline-pair-status').innerText = 'Reply QR ready. Show it to the device that created the first QR.';
-            showToast('Reply QR ready', 'lime');
-        }
-
-        async function finishOfflineConnectionFromSignal(signal) {
-            if (!offlinePC || offlineRole !== 'offer') throw new Error('Create the first QR on this device first');
-            if (signal.type !== 'answer') throw new Error('That QR is not a reply');
-            await offlinePC.setRemoteDescription({ type: 'answer', sdp: signal.sdp });
-            document.getElementById('offline-pair-status').innerText = 'Connecting directly over local Wi-Fi…';
-            showToast('Connecting directly over local Wi-Fi…', 'lime');
-        }
-
-        async function startOfflineQRScanner(mode) {
-            const container = document.getElementById('qr-reader');
-            if (!container || !window.Html5Qrcode) {
-                showToast('QR scanner is unavailable. Use the copy-code fallback.', 'rose');
-                return;
-            }
-            stopQRScanner();
-            container.classList.remove('hidden');
-            try {
-                html5QrcodeScanner = new Html5Qrcode('qr-reader');
-                await html5QrcodeScanner.start(
-                    { facingMode: 'environment' },
-                    { fps: 10, qrbox: { width: 220, height: 220 } },
-                    async decodedText => {
-                        try {
-                            stopQRScanner();
-                            const signal = await decodeSignalQR(decodedText);
-                            if (mode === 'offer') {
-                                await createOfflineAnswerFromSignal(signal);
-                            } else {
-                                await finishOfflineConnectionFromSignal(signal);
-                            }
-                        } catch (e) {
-                            showToast(`QR pairing failed: ${e.message}`, 'rose');
-                        }
-                    },
-                    () => {}
-                );
-                showToast(`Scan the ${mode === 'offer' ? 'connection' : 'reply'} QR`, 'lime');
-            } catch (e) {
-                stopQRScanner();
-                showToast('Camera permission is required for QR pairing', 'rose');
-            }
-        }
-
-        function toggleQRScanner() {
-            startOfflineQRScanner('offer');
-        }
-
-        function stopQRScanner() {
-            const container = document.getElementById('qr-reader');
-            if (html5QrcodeScanner) {
-                try {
-                    if (html5QrcodeScanner.isScanning) {
-                        html5QrcodeScanner.stop().then(() => { try { html5QrcodeScanner.clear(); } catch(e) {} }).catch(() => {});
-                    } else {
-                        try { html5QrcodeScanner.clear(); } catch(e) {}
-                    }
-                } catch(e) {}
-                html5QrcodeScanner = null;
-            }
-            if (container) container.classList.add('hidden');
-        }
-
-        function copyPairingLink() {
-            if (!myID) return;
-            const url = new URL(window.location.href);
-            url.searchParams.set('pair', myID);
-            copyToClipboard(url.toString());
-            showToast("Magic Wi-Fi link copied!", "emerald");
-        }
-
-        function checkUrlAutoPair() {
-            // URL pairing is intentionally disabled: offline mode uses local Offer/Answer exchange.
-        }
-
-        async function copyOfflineOffer() {
-            const v = document.getElementById('offline-offer')?.value || '';
-            if (!v) return showToast('Create the connection QR first', 'rose');
-            try { await navigator.clipboard.writeText(v); } catch(e) { const ta=document.getElementById('offline-offer'); ta.classList.remove('hidden'); ta.select(); document.execCommand('copy'); ta.classList.add('hidden'); }
-            showToast('Pairing code copied', 'emerald');
-        }
-        async function copyOfflineAnswer() {
-            const v = document.getElementById('offline-answer')?.value || '';
-            if (!v) return showToast('Create the reply QR first', 'rose');
-            try { await navigator.clipboard.writeText(v); } catch(e) {}
-            showToast('Reply code copied', 'emerald');
-        }
-
-        function regenerateDeviceCode() {
-            if (isConnected) disconnectPeer();
-            if (offlinePC) { try { offlinePC.close(); } catch(e) {} offlinePC = null; }
-            myID = Math.floor(100000 + Math.random() * 900000).toString();
-            try { sessionStorage.setItem('limeshare_session_id', myID); } catch(e) {}
-            if (peer && !peer.destroyed) {
-                try { peer.destroy(); } catch(e) {}
-                peer = null;
-            }
-            initPeer();
-            showToast(`New Device Code: #${myID}`, "lime");
-        }
-
-        function editMyName() {
-            const newName = prompt("Enter your display name:", myUserName);
-            if (newName && newName.trim()) {
-                myUserName = newName.trim();
-                localStorage.setItem('limeshare_user_name', myUserName);
-                const el = document.getElementById('my-name-display');
-                if (el) el.innerText = myUserName;
-                showToast(`Display name set to: ${myUserName}`, "emerald");
-                // Presence announcements are disabled for public deployment.
-            }
-        }
-
-        function updateRadarStatus(text) {
-            const statusEl = document.getElementById('radar-status-text');
-            if (statusEl) statusEl.innerText = text;
-        }
-
-        function updateChunkBadge(sizeInBytes) {
-            const badge = document.getElementById('chunk-size-badge');
-            if (badge) {
-                const kb = Math.round(sizeInBytes / 1024);
-                badge.innerText = `Auto ${kb}KB`;
-            }
+            showToast("Snippet log cleared", "rose");
         }
 
         function copyToClipboard(str) {
@@ -2696,6 +2381,7 @@
             const dlBtn = document.getElementById('preview-download-btn');
 
             const mime = file.mime || detectMimeByName(file.name);
+
             title.innerText = file.name;
             dlBtn.href = file.url;
             dlBtn.download = file.name;
@@ -2733,7 +2419,7 @@
                     body.appendChild(pre);
                 });
             } else {
-                body.innerHTML = `<p class="text-xs text-slate-400 p-4">Preview not available for this file type.</p>`;
+                body.innerHTML = `<p class="text-xs text-slate-400 p-4">No direct preview available for this file type.</p>`;
             }
 
             modal.classList.remove('hidden');
@@ -2744,6 +2430,57 @@
             const body = document.getElementById('preview-body');
             if (body) body.innerHTML = '';
             if (modal) modal.classList.add('hidden');
+        }
+
+        function toggleQRScanner() {
+            const container = document.getElementById('qr-scanner-container');
+            if (!container) return;
+
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                if (window.Html5Qrcode) {
+                    html5QrcodeScanner = new Html5Qrcode("qr-reader");
+                    html5QrcodeScanner.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 180, height: 180 } },
+                        (decodedText) => {
+                            const input = document.getElementById('peer-id-input');
+                            if (input) input.value = decodedText.trim().toUpperCase();
+                            stopQRScanner();
+                            connectToPeer();
+                        },
+                        () => {}
+                    ).catch(() => {
+                        showToast("Camera permission required", "rose");
+                        container.classList.add('hidden');
+                    });
+                }
+            } else {
+                stopQRScanner();
+            }
+        }
+
+        function stopQRScanner() {
+            const container = document.getElementById('qr-scanner-container');
+            if (html5QrcodeScanner) {
+                try {
+                    if (html5QrcodeScanner.isScanning) {
+                        html5QrcodeScanner.stop().then(() => {
+                            try { html5QrcodeScanner.clear(); } catch(e) {}
+                            if (container) container.classList.add('hidden');
+                        }).catch(() => {
+                            if (container) container.classList.add('hidden');
+                        });
+                    } else {
+                        try { html5QrcodeScanner.clear(); } catch(e) {}
+                        if (container) container.classList.add('hidden');
+                    }
+                } catch(e) {
+                    if (container) container.classList.add('hidden');
+                }
+            } else {
+                if (container) container.classList.add('hidden');
+            }
         }
 
         function showToast(message, type = "lime") {
@@ -2865,6 +2602,235 @@
             if (!str) return '';
             return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
         }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('limeshare_theme') || 'lime';
+            changeTheme(savedTheme, false);
+            updateAudioToggleUI();
+        }
+
+        function changeTheme(themeName, showToastMsg = true) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            if (themeName === 'dark-radar' || themeName === 'cyber') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            localStorage.setItem('limeshare_theme', themeName);
+
+            const iconEl = document.getElementById('theme-icon');
+            if (iconEl) {
+                if (themeName === 'lime') iconEl.setAttribute('data-lucide', 'sun');
+                else if (themeName === 'dark-radar') iconEl.setAttribute('data-lucide', 'radar');
+                else if (themeName === 'cyber') iconEl.setAttribute('data-lucide', 'zap');
+                lucide.createIcons();
+            }
+
+            if (showToastMsg) showToast(`Theme: ${themeName.toUpperCase()}`, "lime");
+        }
+
+        function cycleTheme() {
+            const themes = ['lime', 'dark-radar', 'cyber'];
+            const current = localStorage.getItem('limeshare_theme') || 'lime';
+            const nextIdx = (themes.indexOf(current) + 1) % themes.length;
+            changeTheme(themes[nextIdx], true);
+        }
+
+        function toggleAudioMute() {
+            isAudioMuted = !isAudioMuted;
+            localStorage.setItem('limeshare_audio_muted', isAudioMuted ? 'true' : 'false');
+            updateAudioToggleUI();
+            showToast(isAudioMuted ? "Sounds Muted" : "Sounds Enabled", isAudioMuted ? "amber" : "emerald");
+        }
+
+        function updateAudioToggleUI() {
+            const iconOn = document.getElementById('audio-icon-on');
+            const iconOff = document.getElementById('audio-icon-off');
+            if (iconOn && iconOff) {
+                if (isAudioMuted) {
+                    iconOn.classList.add('hidden');
+                    iconOff.classList.remove('hidden');
+                } else {
+                    iconOn.classList.remove('hidden');
+                    iconOff.classList.add('hidden');
+                }
+            }
+        }
+
+        function copyPairingLink() {
+            if (!myID) return;
+            const url = new URL(window.location.href);
+            url.searchParams.set('pair', myID);
+            copyToClipboard(url.toString());
+            showToast("Magic Share Link copied to clipboard!", "emerald");
+        }
+
+        function checkUrlAutoPair() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const pairParam = urlParams.get('pair');
+            if (pairParam && pairParam.length === 6 && pairParam !== myID) {
+                showToast(`Auto-pairing via Share Link...`, "lime");
+                setTimeout(() => connectToPeer(pairParam), 500);
+            }
+        }
+
+        function regenerateDeviceCode() {
+            if (isConnected) disconnectPeer();
+            myID = Math.floor(100000 + Math.random() * 900000).toString();
+            localStorage.setItem('limeshare_my_id', myID);
+
+            if (peer && !peer.destroyed) {
+                try { peer.destroy(); } catch(e) {}
+                peer = null;
+            }
+
+            initPeer();
+            showToast(`New Code: #${myID}`, "lime");
+        }
+
+        function updateRadarStatus(text) {
+            const statusEl = document.getElementById('radar-status-text');
+            if (statusEl) statusEl.innerText = text;
+        }
+
+        function editMyName() {
+            const newName = prompt("Enter your display name:", myUserName);
+            if (newName && newName.trim()) {
+                myUserName = newName.trim();
+                localStorage.setItem('limeshare_user_name', myUserName);
+                const el = document.getElementById('my-name-display');
+                if (el) el.innerText = myUserName;
+                showToast(`Display name set to: ${myUserName}`, "emerald");
+                if (typeof sendPresencePing === 'function') sendPresencePing();
+            }
+        }
+
+        function initDB() {
+            return new Promise((resolve) => {
+                try {
+                    const req = indexedDB.open('LimeShareStorage', 2);
+                    req.onupgradeneeded = (e) => {
+                        const database = e.target.result;
+                        if (!database.objectStoreNames.contains('files')) {
+                            database.createObjectStore('files', { keyPath: 'id', autoIncrement: true });
+                        }
+                        if (!database.objectStoreNames.contains('snippets')) {
+                            database.createObjectStore('snippets', { keyPath: 'id', autoIncrement: true });
+                        }
+                        if (!database.objectStoreNames.contains('partials')) {
+                            database.createObjectStore('partials', { keyPath: 'fileId' });
+                        }
+                    };
+                    req.onsuccess = (e) => {
+                        db = e.target.result;
+                        loadHistoryFromDB();
+                        loadPartialsFromDB();
+                        resolve(db);
+                    };
+                    req.onerror = () => resolve(null);
+                } catch (err) {
+                    resolve(null);
+                }
+            });
+        }
+
+        function saveFileToDB(fileObj) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('files', 'readwrite');
+                tx.objectStore('files').add({
+                    name: fileObj.name,
+                    size: fileObj.size,
+                    mime: fileObj.mime,
+                    blob: fileObj.blob || null,
+                    isSent: fileObj.isSent || false,
+                    isDiskSaved: fileObj.isDiskSaved || false,
+                    timestamp: Date.now()
+                });
+            } catch(e) {}
+        }
+
+        function saveSnippetToDB(snippetObj) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('snippets', 'readwrite');
+                tx.objectStore('snippets').add(snippetObj);
+            } catch(e) {}
+        }
+
+        function loadHistoryFromDB() {
+            if (!db) return;
+            try {
+                const fileTx = db.transaction('files', 'readonly');
+                const fileReq = fileTx.objectStore('files').getAll();
+                fileReq.onsuccess = () => {
+                    fileHistory = (fileReq.result || []).map(f => ({
+                        name: f.name,
+                        size: f.size,
+                        mime: f.mime,
+                        url: f.blob ? URL.createObjectURL(f.blob) : null,
+                        isSent: f.isSent,
+                        isDiskSaved: f.isDiskSaved
+                    })).reverse();
+                    renderFileHistory();
+                };
+
+                const snippetTx = db.transaction('snippets', 'readonly');
+                const snippetReq = snippetTx.objectStore('snippets').getAll();
+                snippetReq.onsuccess = () => {
+                    snippetHistory = (snippetReq.result || []).reverse();
+                    snippetHistory.forEach(s => renderTextSnippet(s.text, s.isSent, false));
+                };
+            } catch(e) {}
+        }
+
+        function clearDBFiles() {
+            if (!db) return;
+            try {
+                const tx = db.transaction('files', 'readwrite');
+                tx.objectStore('files').clear();
+            } catch(e) {}
+        }
+
+        function savePartialToDB(fileId, meta, chunks, receivedSize) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readwrite');
+                tx.objectStore('partials').put({
+                    fileId: fileId,
+                    meta: meta,
+                    chunks: chunks,
+                    receivedSize: receivedSize,
+                    timestamp: Date.now()
+                });
+            } catch(e) {}
+        }
+
+        function removePartialFromDB(fileId) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readwrite');
+                tx.objectStore('partials').delete(fileId);
+            } catch(e) {}
+        }
+
+        function loadPartialsFromDB() {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readonly');
+                const req = tx.objectStore('partials').getAll();
+                req.onsuccess = () => {
+                    const list = req.result || [];
+                    list.forEach(item => {
+                        activePartialTransfers[item.fileId] = {
+                            meta: item.meta,
+                            chunks: item.chunks,
+                            receivedSize: item.receivedSize
+                        };
+                    });
+                };
+            } catch(e) {}
+        }
     </script>
 </body>
-            </html>
+</html>
