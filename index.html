@@ -671,15 +671,79 @@
     </div>
 
     <script>
-        const MIN_CHUNK_SIZE = 32768;   // 32KB
-        const MAX_CHUNK_SIZE = 65536;   // 64KB (Universal reliable packet limit)
-        const DEFAULT_CHUNK_SIZE = 65536; // 64KB standard
-        const MAX_BUFFER = 2 * 1024 * 1024; // 2MB backpressure limit
-        const LOW_BUFFER = 512 * 1024; // 512KB drain threshold
         const DISK_STREAM_THRESHOLD = 50 * 1024 * 1024; // 50MB Direct Storage threshold
         const PEER_PREFIX = "ls-lan-v6-";
 
-        let currentChunkSize = DEFAULT_CHUNK_SIZE;
+        // Dynamic Device-Adaptive Transfer Tuning (Mobile vs Desktop)
+        function getDeviceTransferConfig() {
+            const mobile = isMobileDevice();
+            if (mobile) {
+                return {
+                    isMobile: true,
+                    chunkSize: 32768,           // 32KB: Optimal safe packet limit for mobile radios & WebKit MTU
+                    maxBuffer: 1024 * 1024,     // 1MB buffer ceiling: Eliminates mobile bufferbloat & memory exhaustion
+                    lowBuffer: 256 * 1024,      // 256KB drain threshold
+                    blockReadSize: 1024 * 1024  // 1MB prefetch memory slice
+                };
+            } else {
+                return {
+                    isMobile: false,
+                    chunkSize: 65536,           // 64KB: Universal maximum SCTP frame for desktop throughput
+                    maxBuffer: 4 * 1024 * 1024, // 4MB buffer ceiling for high-speed desktop gigabit Wi-Fi
+                    lowBuffer: 1024 * 1024,     // 1MB drain threshold
+                    blockReadSize: 4 * 1024 * 1024 // 4MB prefetch memory slice
+                };
+            }
+        }
+
+        // Helper to resolve the underlying native RTCDataChannel safely
+        function getRawDataChannel(conn) {
+            if (!conn) return null;
+            return conn._dc || conn.dataChannel || null;
+        }
+
+        // Deadlock-proof, high-speed buffer drain controller
+        async function waitForBufferDrain(dc, maxAllowedBuffer, lowThreshold) {
+            if (!dc || dc.bufferedAmount <= maxAllowedBuffer) return;
+
+            return new Promise(resolve => {
+                let finished = false;
+                let pollTimer = null;
+                let timeoutTimer = null;
+
+                const cleanup = () => {
+                    if (finished) return;
+                    finished = true;
+                    if (pollTimer) clearInterval(pollTimer);
+                    if (timeoutTimer) clearTimeout(timeoutTimer);
+                    if (dc) {
+                        try { dc.removeEventListener('bufferedamountlow', onLow); } catch(e) {}
+                    }
+                    resolve();
+                };
+
+                const onLow = () => {
+                    if (!dc || dc.bufferedAmount <= lowThreshold) {
+                        cleanup();
+                    }
+                };
+
+                if (dc) {
+                    try { dc.addEventListener('bufferedamountlow', onLow); } catch(e) {}
+                }
+
+                // Fast 10ms interval check fallback (critical for mobile Chrome & Safari)
+                pollTimer = setInterval(() => {
+                    if (!dc || dc.bufferedAmount <= lowThreshold) {
+                        cleanup();
+                    }
+                }, 10);
+
+                // 4-second safety guard: guarantees transfer never permanently freezes
+                timeoutTimer = setTimeout(cleanup, 4000);
+            });
+        }
+
         let myID = null;
         let myUserName = localStorage.getItem('limeshare_user_name');
         if (!myUserName) {
@@ -810,11 +874,11 @@
             }
         }
 
-        function updateChunkBadge(sizeInBytes) {
+        function updateChunkBadge(sizeInBytes, isMobile = false) {
             const badge = document.getElementById('chunk-size-badge');
             if (badge) {
                 const kb = Math.round(sizeInBytes / 1024);
-                badge.innerText = `Auto ${kb}KB`;
+                badge.innerText = `${isMobile ? 'Mobile' : 'Turbo'} ${kb}KB`;
             }
         }
 
@@ -1776,23 +1840,23 @@
 
         async function startStreamingChunks(file, resumeOffset = 0) {
             await requestWakeLock();
+            const config = getDeviceTransferConfig();
+            const { chunkSize, maxBuffer, lowBuffer, blockReadSize, isMobile } = config;
+
+            updateChunkBadge(chunkSize, isMobile);
             showProgressUI(file.name, true, file.size);
             updateProgressUI(resumeOffset, file.size);
 
             let offset = resumeOffset;
-            const rawDC = activeDataConn ? (activeDataConn._dc || activeDataConn.dataChannel) : null;
+            const rawDC = getRawDataChannel(activeDataConn);
             if (rawDC) {
                 try { rawDC.binaryType = 'arraybuffer'; } catch(e) {}
                 if ('bufferedAmountLowThreshold' in rawDC) {
-                    try { rawDC.bufferedAmountLowThreshold = LOW_BUFFER; } catch(e) {}
+                    try { rawDC.bufferedAmountLowThreshold = lowBuffer; } catch(e) {}
                 }
             }
 
-            currentChunkSize = DEFAULT_CHUNK_SIZE;
-            updateChunkBadge(currentChunkSize);
-
-            // ISSUE 2 FIX: High-Speed Block Prefetching
-            // Read 2MB blocks from disk at once, then slice 64KB chunks in memory synchronously
+            // High-Speed Block Prefetching loop with device-tailored parameters
             while (offset < file.size) {
                 if (!isConnected || !activeDataConn || !activeDataConn.open) {
                     preservePartialState();
@@ -1801,36 +1865,12 @@
                     return;
                 }
 
-                // Wait if outgoing WebRTC buffer exceeds 4MB
-                const currentBuffer = rawDC ? rawDC.bufferedAmount : 0;
-                if (currentBuffer > MAX_BUFFER) {
-                    await new Promise(resolve => {
-                        let done = false;
-                        const drainHandler = () => {
-                            if (!done && (!rawDC || rawDC.bufferedAmount <= LOW_BUFFER)) {
-                                done = true;
-                                if (rawDC) rawDC.removeEventListener('bufferedamountlow', drainHandler);
-                                resolve();
-                            }
-                        };
-
-                        if (rawDC) rawDC.addEventListener('bufferedamountlow', drainHandler);
-
-                        const timer = setInterval(() => {
-                            if (!rawDC || rawDC.bufferedAmount <= LOW_BUFFER) {
-                                if (!done) {
-                                    done = true;
-                                    clearInterval(timer);
-                                    if (rawDC) rawDC.removeEventListener('bufferedamountlow', drainHandler);
-                                    resolve();
-                                }
-                            }
-                        }, 8);
-                    });
+                // Check and wait for backpressure drain before memory block read
+                if (rawDC) {
+                    await waitForBufferDrain(rawDC, maxBuffer, lowBuffer);
                 }
 
-                // Prefetch a 2MB block into RAM to eliminate async disk slicing latency
-                const blockEnd = Math.min(file.size, offset + BLOCK_READ_SIZE);
+                const blockEnd = Math.min(file.size, offset + blockReadSize);
                 const blockSlice = file.slice(offset, blockEnd);
                 let blockBuffer;
                 try {
@@ -1843,7 +1883,7 @@
                     return;
                 }
 
-                // Stream 64KB sub-chunks from the memory buffer directly
+                // Stream safe-sized sub-chunks directly from memory into socket
                 let blockOffset = 0;
                 while (blockOffset < blockBuffer.byteLength) {
                     if (!isConnected || !activeDataConn || !activeDataConn.open) {
@@ -1854,20 +1894,11 @@
                     }
 
                     // Intra-block backpressure check
-                    if (rawDC && rawDC.bufferedAmount > MAX_BUFFER) {
-                        await new Promise(res => {
-                            const handler = () => {
-                                if (rawDC.bufferedAmount <= LOW_BUFFER) {
-                                    rawDC.removeEventListener('bufferedamountlow', handler);
-                                    res();
-                                }
-                            };
-                            rawDC.addEventListener('bufferedamountlow', handler);
-                            setTimeout(res, 12);
-                        });
+                    if (rawDC) {
+                        await waitForBufferDrain(rawDC, maxBuffer, lowBuffer);
                     }
 
-                    const chunkEnd = Math.min(blockBuffer.byteLength, blockOffset + currentChunkSize);
+                    const chunkEnd = Math.min(blockBuffer.byteLength, blockOffset + chunkSize);
                     const chunkData = blockBuffer.slice(blockOffset, chunkEnd);
 
                     try {
@@ -1900,6 +1931,12 @@
                             resolve();
                         }
                     }, 15);
+
+                    // Maximum 3s flush guard
+                    setTimeout(() => {
+                        clearInterval(drainTimer);
+                        resolve();
+                    }, 3000);
                 });
             }
 
