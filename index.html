@@ -734,6 +734,7 @@
         let lastTime = performance.now();
         let lastBytes = 0;
         let lastUiUpdate = 0;
+        let myPublicIP = null;
 
         const MQTT_BROKERS = [
             'wss://broker.emqx.io:8084/mqtt',
@@ -745,11 +746,48 @@
             lucide.createIcons();
             initTheme();
             initPwaSupport();
+            await fetchPublicIP();
 
             await initDB();
             initPeer();
             setupDragAndDrop();
         });
+
+        async function hashString(str) {
+            try {
+                if (crypto && crypto.subtle && crypto.subtle.digest) {
+                    const msgUint8 = new TextEncoder().encode(str + "_limeshare_wifi_salt");
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 20);
+                }
+            } catch(e) {}
+            let hash = 0;
+            const salted = str + "_limeshare_wifi_salt";
+            for (let i = 0; i < salted.length; i++) {
+                hash = ((hash << 5) - hash) + salted.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash).toString(16);
+        }
+
+        async function fetchPublicIP() {
+            try {
+                const ip = await Promise.race([
+                    fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip),
+                    fetch('https://cloudflare.com/cdn-cgi/trace').then(r => r.text()).then(t => {
+                        const m = t.match(/ip=(.+)/);
+                        return m ? m[1].trim() : null;
+                    })
+                ]);
+                if (ip) {
+                    myPublicIP = ip;
+                    console.log("Verified Local Wi-Fi Router Gateway IP:", myPublicIP);
+                }
+            } catch(e) {
+                console.log("Offline or local hotspot without internet access.");
+            }
+        }
 
         function isMobileDevice() {
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
@@ -855,14 +893,13 @@
                         iceServers: [
                             { urls: 'stun:stun.l.google.com:19302' },
                             { urls: 'stun:stun1.l.google.com:19302' },
-                            { urls: 'stun:stun2.l.google.com:19302' },
                             { urls: 'stun:stun.cloudflare.com:3478' }
                         ]
                     }
                 });
 
                 peer.on('open', () => {
-                    updateRadarStatus("Online • Ready");
+                    updateRadarStatus("Online • Wi-Fi Subnet Protected");
                     checkUrlAutoPair();
                 });
 
@@ -905,9 +942,12 @@
             }
         }
 
-        function setupPresenceBeacon() {
-            const topicRoom = `limeshare_lan_mesh_v6`;
+        async function setupPresenceBeacon() {
+            if (!myPublicIP) {
+                await fetchPublicIP();
+            }
 
+            // Always support local tab and cross-window pairing on the same machine
             if (!broadcastChannel && 'BroadcastChannel' in window) {
                 broadcastChannel = new BroadcastChannel('limeshare_local_lan_ch');
             }
@@ -934,6 +974,17 @@
                 };
             }
 
+            // STRICT LOCAL WI-FI ISOLATION:
+            // Do not connect to public MQTT brokers without a verified public IP
+            if (!myPublicIP) {
+                console.log("No public gateway IP available; running in strictly local offline mode.");
+                return;
+            }
+
+            // Generate an isolated discovery channel matching ONLY devices on the exact same router
+            const wifiSubnetHash = await hashString(myPublicIP);
+            const topicRoom = `ls_subnet_${wifiSubnetHash}`;
+
             function connectMqttBroker(brokerIndex = 0) {
                 if (brokerIndex >= MQTT_BROKERS.length) return;
                 try {
@@ -954,6 +1005,11 @@
                             const data = JSON.parse(message.toString());
                             if (!data || !data.senderID || data.senderID === myID) return;
 
+                            // DOUBLE-LOCK: Discard any beacon with a mismatched public gateway IP
+                            if (data.publicIP && myPublicIP && data.publicIP !== myPublicIP) {
+                                return;
+                            }
+
                             if (data.type === 'presence_ping') {
                                 registerDiscoveredPeer(data.senderID, data.deviceType, data.userName);
                                 if (mqttClient && mqttClient.connected) {
@@ -961,6 +1017,7 @@
                                         type: 'presence_pong',
                                         senderID: myID,
                                         userName: myUserName,
+                                        publicIP: myPublicIP,
                                         targetID: data.senderID,
                                         deviceType: isMobileDevice() ? 'mobile' : 'laptop'
                                     }));
@@ -989,12 +1046,13 @@
                     type: 'presence_ping',
                     senderID: myID,
                     userName: myUserName,
+                    publicIP: myPublicIP,
                     timestamp: Date.now(),
                     deviceType: isMobileDevice() ? 'mobile' : 'laptop'
                 };
 
                 if (broadcastChannel) broadcastChannel.postMessage(payload);
-                if (mqttClient && mqttClient.connected) {
+                if (mqttClient && mqttClient.connected && topicRoom) {
                     mqttClient.publish(topicRoom, JSON.stringify(payload));
                 }
             };
@@ -1114,54 +1172,6 @@
             lucide.createIcons();
         }
 
-        function isPrivateOrLocalCandidate(candidateStr) {
-            if (!candidateStr) return false;
-            // 1. Filter host candidates (which expose internal interface IPs and mDNS)
-            if (/\btyp\s+host\b/i.test(candidateStr)) return true;
-            // 2. Filter private RFC 1918 IPv4 ranges and link-local addresses
-            if (/\b(?:10\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])|192\.168|169\.254|127\.\d{1,3})\.\d{1,3}\.\d{1,3}\b/.test(candidateStr)) return true;
-            // 3. Filter mDNS obfuscated hostnames (*.local)
-            if (/\.local\b/i.test(candidateStr)) return true;
-            // 4. Filter IPv6 site/link-local addresses
-            if (/\b(?:fe80|fc00|fd00):/i.test(candidateStr)) return true;
-            return false;
-        }
-
-        function applyIceCandidateFilter(pc) {
-            // Apply filtering on public domains (e.g. GitHub Pages) but preserve local testing on localhost
-            const isPublicDomain = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-            if (!isPublicDomain || !pc || pc._lsCandidateFilterApplied) return;
-            pc._lsCandidateFilterApplied = true;
-
-            // Intercept and drop inbound private candidates received from signaling
-            const originalAddIceCandidate = pc.addIceCandidate.bind(pc);
-            pc.addIceCandidate = function(candidate, ...args) {
-                const candStr = candidate ? (candidate.candidate || candidate) : '';
-                if (isPrivateOrLocalCandidate(candStr)) {
-                    return Promise.resolve();
-                }
-                return originalAddIceCandidate(candidate, ...args);
-            };
-
-            // Intercept and drop outbound local host candidates before transmission over signaling
-            let peerJsCandidateHandler = pc.onicecandidate;
-            Object.defineProperty(pc, 'onicecandidate', {
-                get() { return peerJsCandidateHandler; },
-                set(newHandler) {
-                    peerJsCandidateHandler = function(event) {
-                        if (event && event.candidate && isPrivateOrLocalCandidate(event.candidate.candidate)) {
-                            return; // Suppress signaling of local interface/host candidate
-                        }
-                        if (newHandler) newHandler(event);
-                    };
-                },
-                configurable: true
-            });
-            if (pc.onicecandidate) {
-                pc.onicecandidate = pc.onicecandidate;
-            }
-        }
-
         async function inspectActivePeerConnection(pc) {
             if (!pc || pc.connectionState === 'closed') return null;
             try {
@@ -1191,15 +1201,15 @@
                         : null;
 
                     const typeLabels = {
+                        'host': 'Direct Local Wi-Fi (LAN)',
                         'srflx': 'STUN (NAT)',
                         'prflx': 'Peer Reflexive',
-                        'relay': 'TURN Relay',
-                        'host': 'Local LAN'
+                        'relay': 'TURN Relay'
                     };
 
-                    const candType = remoteCandidate?.candidateType || 'srflx';
+                    const candType = remoteCandidate?.candidateType || 'host';
                     const labelType = typeLabels[candType] || candType.toUpperCase();
-                    const ip = remoteCandidate?.ip || remoteCandidate?.address || 'Public NAT';
+                    const ip = remoteCandidate?.ip || remoteCandidate?.address || 'Local Device';
                     const port = remoteCandidate?.port ? `:${remoteCandidate.port}` : '';
 
                     return {
@@ -1292,16 +1302,9 @@
         function setupDataConnection(conn, isInitiator) {
             activeDataConn = conn;
 
-            // Apply ICE candidate filter to the underlying RTCPeerConnection
-            const rawPc = conn.peerConnection;
-            if (rawPc) {
-                applyIceCandidateFilter(rawPc);
-            }
-
             conn.on('open', () => {
                 const activePc = conn.peerConnection;
                 if (activePc) {
-                    applyIceCandidateFilter(activePc);
                     startConnectionStatsMonitor(activePc);
                 }
 
@@ -1309,7 +1312,8 @@
                     sendControlMessage(conn, {
                         type: 'pair_handshake_req',
                         senderID: myID,
-                        userName: myUserName
+                        userName: myUserName,
+                        publicIP: myPublicIP
                     });
                 };
 
@@ -1366,11 +1370,11 @@
             if (msg.type === 'pair_handshake_req') {
                 const securityShieldActive = localStorage.getItem('limeshare_require_approval') !== 'false';
                 if (securityShieldActive) {
-                    pendingPeerRequest = { senderID: msg.senderID, userName: msg.userName, conn };
-                    document.getElementById('pair-request-peer-id').innerText = `${msg.userName || 'Device'} (#${msg.senderID})`;
+                    pendingPeerRequest = { senderID: msg.senderID, userName: msg.userName, publicIP: msg.publicIP, conn };
+                    document.getElementById('pair-request-peer-id').innerText = `${msg.userName || 'Device'} (#${msg.senderID})${msg.publicIP ? ' • ' + msg.publicIP : ''}`;
                     document.getElementById('pair-request-modal').classList.remove('hidden');
                 } else {
-                    sendControlMessage(conn, { type: 'pair_handshake_ack', senderID: myID, userName: myUserName });
+                    sendControlMessage(conn, { type: 'pair_handshake_ack', senderID: myID, userName: myUserName, publicIP: myPublicIP });
                     finalizeConnection(msg.senderID, msg.userName);
                 }
             }
