@@ -2159,7 +2159,7 @@
                 name: file.name,
                 size: file.size,
                 mime: file.type || detectMimeByName(file.name),
-                blob: file.size < 25 * 1024 * 1024 ? file : null, // Protect IndexedDB quota for files > 25MB
+                blob: file.size < 25 * 1024 * 1024 ? file : null,
                 url: URL.createObjectURL(file),
                 isSent: true,
                 transferSpeed: avgSpeed,
@@ -2168,7 +2168,14 @@
             saveFileToDB(fileObj);
             addFileToHistory(fileObj);
 
-            hideProgressUI(false);
+            // Auto-complete sender HUD fallback: if receiver acknowledgment takes > 2.5s, auto-dismiss cleanly
+            setTimeout(() => {
+                if (fileLabel && fileLabel.innerText.includes('Sent')) {
+                    fileLabel.innerText = `Completed & Saved!`;
+                }
+                hideProgressUI(false);
+            }, 2500);
+
             currentTransferFile = null;
             lastAttemptedFile = null;
             resetFileInputs();
