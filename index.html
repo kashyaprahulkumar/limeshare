@@ -629,6 +629,10 @@
         let batchDirectMode = false;
         let senderAckTimeout = null;
 
+        // OPFS Zero-RAM Direct Disk Streaming
+        let opfsWritable = null;
+        let opfsFileHandle = null;
+
         let isTransferPaused = false;
         let isTransferCancelled = false;
         let smoothedSpeed = 0;
@@ -863,6 +867,24 @@
             const folderInput = document.getElementById('folder-input');
             if (fileInput) fileInput.value = '';
             if (folderInput) folderInput.value = '';
+        }
+
+        async function initDiskWriter(filename) {
+            opfsWritable = null;
+            opfsFileHandle = null;
+            if (navigator.storage && navigator.storage.getDirectory) {
+                try {
+                    const root = await navigator.storage.getDirectory();
+                    const safeName = 'ls_stream_' + filename.replace(/[/\\?%*:|"<>]/g, '_');
+                    opfsFileHandle = await root.getFileHandle(safeName, { create: true });
+                    if (typeof opfsFileHandle.createWritable === 'function') {
+                        opfsWritable = await opfsFileHandle.createWritable();
+                    }
+                } catch (err) {
+                    opfsWritable = null;
+                    opfsFileHandle = null;
+                }
+            }
         }
 
         function updateChunkBadge(sizeInBytes, isMobile = false) {
@@ -1502,16 +1524,21 @@
                 handleFileOffer(msg);
             }
             else if (msg.type === 'accept') {
-                if (currentTransferFile || lastAttemptedFile) {
-                    const activeFile = currentTransferFile || lastAttemptedFile;
-                    currentTransferFile = activeFile;
-                    startStreamingChunks(activeFile, msg.resumeOffset || 0);
+                if (currentTransferFile && (!msg.name || msg.name === currentTransferFile.name)) {
+                    startStreamingChunks(currentTransferFile, msg.resumeOffset || 0);
+                } else if (lastAttemptedFile && (!msg.name || msg.name === lastAttemptedFile.name)) {
+                    currentTransferFile = lastAttemptedFile;
+                    startStreamingChunks(currentTransferFile, msg.resumeOffset || 0);
                 }
             }
             else if (msg.type === 'end') {
-                handleTransferEnd();
+                handleTransferEnd(msg);
             }
             else if (msg.type === 'file_saved') {
+                // Ignore stale acks from previous files
+                if (msg.name && currentTransferFile && msg.name !== currentTransferFile.name) {
+                    return;
+                }
                 const fileLabel = document.getElementById('file-info-label');
                 if (fileLabel) fileLabel.innerText = `Completed & Saved!`;
                 const dirBadge = document.getElementById('transfer-direction-badge');
@@ -1537,15 +1564,23 @@
 
             const isDirect = data.isDirect || batchDirectMode || (data.size >= DIRECT_DOWNLOAD_THRESHOLD);
 
+            // Zero-RAM Direct Disk Stream: stream chunk-by-chunk into disk storage
+            if (isDirect) {
+                await initDiskWriter(data.name);
+            } else {
+                opfsWritable = null;
+                opfsFileHandle = null;
+            }
+
             // Zero-prompt auto-accept: Streams directly to disk/downloads without asking
             if (activeDataConn && activeDataConn.open) {
-                sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
+                sendControlMessage(activeDataConn, { type: 'accept', name: data.name, resumeOffset: 0 });
             }
             showProgressUI(data.name, false, data.size);
             updateProgressUI(0, data.size);
 
             if (isDirect) {
-                showToast(`Receiving ${data.name} directly to Downloads...`, "emerald");
+                showToast(`Receiving ${data.name} directly to storage...`, "emerald");
             }
         }
 
@@ -1556,13 +1591,17 @@
             }
             isTransferring = false;
             currentTransferFile = null;
-            hideProgressUI(false);
 
+            // If more files exist in the queue, keep HUD open and send next file
             if (pendingFileQueue.length > 0) {
-                setTimeout(processNextFileInQueue, 300);
+                setTimeout(() => {
+                    processNextFileInQueue();
+                }, 350);
             } else {
+                // Batch is fully completed
                 activeBatchIsDirect = false;
                 activeBatchTotalSize = 0;
+                setTimeout(() => hideProgressUI(false), 1500);
             }
         }
 
@@ -1611,8 +1650,19 @@
         async function handleIncomingChunk(chunkBuffer) {
             if (!incomingMeta) return;
             
-            receivedChunks.push(chunkBuffer);
-            receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
+            if (opfsWritable) {
+                try {
+                    await opfsWritable.write(chunkBuffer);
+                    receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
+                    // chunkBuffer is written to disk and deallocated; NOT kept in RAM
+                } catch (writeErr) {
+                    receivedChunks.push(chunkBuffer);
+                    receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
+                }
+            } else {
+                receivedChunks.push(chunkBuffer);
+                receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
+            }
             
             const now = performance.now();
             if (now - lastUiUpdate > 60) {
@@ -1621,7 +1671,7 @@
             }
         }
 
-        async function handleTransferEnd() {
+        async function handleTransferEnd(msg) {
             try {
                 playChime('complete');
                 releaseWakeLock();
@@ -1644,36 +1694,45 @@
                     dirBadge.className = "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0";
                 }
 
-                // Send completion acknowledgment back to sender immediately
-                if (activeDataConn && activeDataConn.open) {
-                    sendControlMessage(activeDataConn, { type: 'file_saved', name: meta.name });
-                }
-
                 const isDirect = meta.isDirect || batchDirectMode || (meta.size >= DIRECT_DOWNLOAD_THRESHOLD);
 
-                if (isDirect) {
-                    // DIRECT DOWNLOAD MODE: Trigger direct browser download and immediately revoke from RAM
-                    const detectedMime = meta.mime || detectMimeByName(meta.name);
-                    const blob = new Blob(chunksToSave, { type: detectedMime || 'application/octet-stream' });
-                    const url = URL.createObjectURL(blob);
+                if (opfsWritable || isDirect) {
+                    // DIRECT DISK MODE: Streamed directly to disk without RAM retention
+                    if (opfsWritable) {
+                        try {
+                            await opfsWritable.close();
+                            opfsWritable = null;
+                        } catch(e) {}
+                    }
 
-                    try {
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = meta.name;
-                        document.body.appendChild(a);
-                        a.click();
-                        setTimeout(() => {
-                            if (document.body.contains(a)) document.body.removeChild(a);
-                            // Revoke Object URL to guarantee zero RAM retention
-                            URL.revokeObjectURL(url);
-                        }, 200);
-                    } catch(e) {}
+                    if (opfsFileHandle) {
+                        try {
+                            const diskFile = await opfsFileHandle.getFile();
+                            const url = URL.createObjectURL(diskFile);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = meta.name;
+                            document.body.appendChild(a);
+                            a.click();
+                            setTimeout(() => {
+                                if (document.body.contains(a)) document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                                try { if (opfsFileHandle) opfsFileHandle.remove(); } catch(e) {}
+                                opfsFileHandle = null;
+                            }, 1500);
+                        } catch(e) {
+                            if (chunksToSave.length > 0) {
+                                saveAndDownloadDirect(chunksToSave, meta.name, meta.mime);
+                            }
+                        }
+                    } else if (chunksToSave.length > 0) {
+                        saveAndDownloadDirect(chunksToSave, meta.name, meta.mime);
+                    }
 
                     const fileObj = {
                         name: meta.name,
                         size: meta.size,
-                        mime: detectedMime,
+                        mime: meta.mime || detectMimeByName(meta.name),
                         blob: null, 
                         url: null,  
                         isSent: false,
@@ -1690,6 +1749,11 @@
                     enforceAutoRamLimit();
                 }
 
+                // Send completion acknowledgment back to sender immediately WITH the file name!
+                if (activeDataConn && activeDataConn.open) {
+                    sendControlMessage(activeDataConn, { type: 'file_saved', name: meta.name });
+                }
+
                 const fileLabel = document.getElementById('file-info-label');
                 if (fileLabel) fileLabel.innerText = `Completed (${avgSpeed})`;
 
@@ -1702,6 +1766,23 @@
             } catch (err) {
                 hideProgressUI(true);
             }
+        }
+
+        function saveAndDownloadDirect(chunks, name, mime) {
+            try {
+                const detectedMime = mime || detectMimeByName(name);
+                const blob = new Blob(chunks, { type: detectedMime || 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    if (document.body.contains(a)) document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 300);
+            } catch(e) {}
         }
 
         async function queueFilesForTransfer(files) {
@@ -1885,12 +1966,12 @@
                             clearInterval(drainTimer);
                             resolve();
                         }
-                    }, 15);
+                    }, 20);
 
                     setTimeout(() => {
                         clearInterval(drainTimer);
                         resolve();
-                    }, 3000);
+                    }, 6000);
                 });
             }
 
@@ -1902,10 +1983,13 @@
 
             updateProgressUI(file.size, file.size);
             const etaLabel = document.getElementById('eta-label');
-            if (etaLabel) etaLabel.innerText = "Completed";
+            if (etaLabel) etaLabel.innerText = "Syncing with receiver...";
+
+            const fileLabel = document.getElementById('file-info-label');
+            if (fileLabel) fileLabel.innerText = `Finalizing on receiver...`;
 
             try {
-                sendControlMessage(activeDataConn, { type: 'end' });
+                sendControlMessage(activeDataConn, { type: 'end', name: file.name });
             } catch(err) {}
 
             playChime('complete');
@@ -1913,13 +1997,13 @@
 
             const elapsedSec = Math.max(0.1, (performance.now() - transferStartTime) / 1000);
             const avgSpeed = formatSpeed(file.size / elapsedSec);
-            showToast(`${file.name} sent at ${avgSpeed}!`, "emerald");
+            showToast(`${file.name} sent! Waiting for receiver save...`, "lime");
 
             const fileObj = {
                 name: file.name,
                 size: file.size,
                 mime: file.type || detectMimeByName(file.name),
-                blob: file.size < 25 * 1024 * 1024 ? file : null,
+                blob: null,
                 url: URL.createObjectURL(file),
                 isSent: true,
                 transferSpeed: avgSpeed,
@@ -1929,13 +2013,13 @@
             addFileToHistory(fileObj);
             enforceAutoRamLimit();
 
-            // Sender fallback timer to advance queue if receiver acknowledgment is delayed
+            // Sender waits for receiver to acknowledge file save; fallback watchdog
             if (senderAckTimeout) clearTimeout(senderAckTimeout);
             senderAckTimeout = setTimeout(() => {
                 if (isTransferring) {
                     handleSenderFileCompletion();
                 }
-            }, 2500);
+            }, 30000);
 
             resetFileInputs();
         }
@@ -1990,6 +2074,11 @@
             const dirBadge = document.getElementById('transfer-direction-badge');
             
             if (!card) return;
+            
+            if (hideTimeout) {
+                clearTimeout(hideTimeout);
+                hideTimeout = null;
+            }
             card.classList.remove('hidden');
 
             if (fileLabel) fileLabel.innerText = fileName || "Transferring...";
