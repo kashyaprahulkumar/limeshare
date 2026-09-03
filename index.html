@@ -1975,10 +1975,25 @@
 
             if (!files || files.length === 0) return;
 
-            // Push all files directly to the queue for sequential 1-by-1 transfer (no ZIP compression to avoid browser tab crashes)
+            // Calculate cumulative batch payload
+            const batchBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
+            activeBatchTotalSize = (pendingFileQueue.length > 0) ? (activeBatchTotalSize + batchBytes) : batchBytes;
+            activeBatchIsDirect = (activeBatchTotalSize > DIRECT_DOWNLOAD_THRESHOLD);
+
+            // Tag each file with batch context
+            files.forEach(f => {
+                f.batchTotalSize = activeBatchTotalSize;
+                f.isDirectDownload = activeBatchIsDirect || (f.size > DIRECT_DOWNLOAD_THRESHOLD);
+            });
+
             pendingFileQueue.push(...files);
             if (files.length > 1) {
-                showToast(`Queued ${files.length} file(s) for sequential transfer`, "lime");
+                showToast(
+                    activeBatchIsDirect 
+                        ? `Queued ${files.length} files (${formatBytes(batchBytes)}) • Auto-Direct Download` 
+                        : `Queued ${files.length} file(s) for sequential transfer`, 
+                    "lime"
+                );
             }
 
             if (!isTransferring) {
@@ -1987,9 +2002,13 @@
         }
 
         function processNextFileInQueue() {
+            if (isTransferring) return; // Prevent race conditions & double-stepping
+
             if (pendingFileQueue.length === 0) {
                 isTransferring = false;
                 currentTransferFile = null;
+                activeBatchTotalSize = 0;
+                activeBatchIsDirect = false;
                 return;
             }
 
@@ -2008,11 +2027,19 @@
             lastAttemptedFile = currentTransferFile;
             
             showProgressUI(currentTransferFile.name, true, currentTransferFile.size);
+
+            const isDirect = (currentTransferFile.size > DIRECT_DOWNLOAD_THRESHOLD) || 
+                             ((currentTransferFile.batchTotalSize || 0) > DIRECT_DOWNLOAD_THRESHOLD) || 
+                             (currentTransferFile.isDirectDownload === true) ||
+                             activeBatchIsDirect;
+
             const payloadMeta = { 
                 type: 'offer', 
                 name: currentTransferFile.name, 
                 size: currentTransferFile.size, 
-                mime: currentTransferFile.type || detectMimeByName(currentTransferFile.name) 
+                mime: currentTransferFile.type || detectMimeByName(currentTransferFile.name),
+                batchTotalSize: currentTransferFile.batchTotalSize || activeBatchTotalSize,
+                isDirectDownload: isDirect
             };
             
             try {
@@ -2206,7 +2233,14 @@
 
             // Allow receiver to finalize disk write/download before starting next queued file
             if (pendingFileQueue.length > 0) {
-                setTimeout(processNextFileInQueue, 500);
+                setTimeout(() => {
+                    if (!isTransferring && pendingFileQueue.length > 0) {
+                        processNextFileInQueue();
+                    }
+                }, 300);
+            } else {
+                activeBatchTotalSize = 0;
+                activeBatchIsDirect = false;
             }
         }
 
@@ -2457,54 +2491,95 @@
                 const blob = new Blob(chunks, { type: detectedMime || 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
 
-                const isOver100MB = blob.size >= (100 * 1024 * 1024);
+                const isDirectMode = incomingMeta?.isDirectDownload || 
+                                     ((incomingMeta?.batchTotalSize || 0) > DIRECT_DOWNLOAD_THRESHOLD) || 
+                                     (blob.size > DIRECT_DOWNLOAD_THRESHOLD);
 
-                const fileObj = {
-                    name: name,
-                    size: blob.size,
-                    mime: detectedMime,
-                    blob: (blob.size < 25 * 1024 * 1024 && !isOver100MB) ? blob : null, // Prevent RAM/IndexedDB bloat
-                    url: isOver100MB ? null : url,
-                    isSent: false,
-                    isDiskSaved: isOver100MB,
-                    transferSpeed: transferSpeed,
-                    timestamp: Date.now()
-                };
-
-                saveFileToDB(fileObj);
-                addFileToHistory(fileObj);
-
-                pendingSaveFile = { blob, name, url, mime: detectedMime };
-
-                // Send acknowledgment back to sender so sender card marks as Completed & Saved
-                if (activeDataConn && activeDataConn.open) {
-                    sendControlMessage(activeDataConn, { type: 'file_saved', name: name });
-                }
-
-                if (isOver100MB) {
-                    // Files >= 100 MB: Directly save to device downloads folder and immediately release RAM
+                if (isDirectMode) {
+                    // Direct to Downloads without asking & immediately purge RAM
                     try {
                         const a = document.createElement('a');
                         a.href = url;
                         a.download = name;
+                        a.style.display = 'none';
                         document.body.appendChild(a);
                         a.click();
                         setTimeout(() => {
                             if (document.body.contains(a)) document.body.removeChild(a);
-                            // Revoke Object URL immediately to free RAM
-                            URL.revokeObjectURL(url);
-                        }, 1500);
+                            // Revoke URL after giving browser enough time to begin download
+                            setTimeout(() => URL.revokeObjectURL(url), 20000);
+                        }, 500);
                     } catch (e) {
-                        console.error("Direct save trigger error:", e);
+                        console.error("Direct download trigger error:", e);
                     }
-                    showToast(`Saved ${name} (${formatBytes(blob.size)}) directly to storage!`, "emerald");
+
+                    const fileObj = {
+                        name: name,
+                        size: blob.size,
+                        mime: detectedMime,
+                        blob: null, // Zero RAM retained!
+                        url: null,
+                        isSent: false,
+                        isDiskSaved: true,
+                        transferSpeed: transferSpeed,
+                        timestamp: Date.now()
+                    };
+
+                    saveFileToDB(fileObj);
+                    addFileToHistory(fileObj);
+                    showToast(`Saved ${name} (${formatBytes(blob.size)}) directly to Downloads!`, "emerald");
                 } else {
-                    // Files < 100 MB: Stored in Files & History section; user decides when to save or preview
+                    // Total batch <= 200MB: Save in RAM & Files and History
+                    const fileObj = {
+                        name: name,
+                        size: blob.size,
+                        mime: detectedMime,
+                        blob: blob,
+                        url: url,
+                        isSent: false,
+                        isDiskSaved: false,
+                        transferSpeed: transferSpeed,
+                        timestamp: Date.now()
+                    };
+
+                    saveFileToDB(fileObj);
+                    addFileToHistory(fileObj);
+                    enforceAutoRamLimit();
                     showToast(`Received ${name} • Stored in Files & History`, "emerald");
+                }
+
+                // Send acknowledgment back to sender so sender streams next queued file
+                if (activeDataConn && activeDataConn.open) {
+                    sendControlMessage(activeDataConn, { type: 'file_saved', name: name });
                 }
             } catch (err) {
                 console.error("Error in saveReceivedFile:", err);
                 showToast("Error processing received file: " + err.message, "rose");
+            }
+        }
+
+        function enforceAutoRamLimit() {
+            let totalRamBytes = 0;
+            fileHistory.forEach(f => {
+                if (f.blob && f.size) totalRamBytes += f.size;
+            });
+
+            // If RAM buffered size exceeds 300MB, automatically clean up oldest RAM buffers
+            if (totalRamBytes > RAM_MAX_BUFFER_LIMIT) {
+                for (let i = fileHistory.length - 1; i >= 0; i--) {
+                    const f = fileHistory[i];
+                    if (f.blob) {
+                        totalRamBytes -= f.size;
+                        if (f.url) {
+                            try { URL.revokeObjectURL(f.url); } catch(e) {}
+                            f.url = null;
+                        }
+                        f.blob = null;
+                        f.memoryFreed = true;
+                        if (totalRamBytes <= RAM_MAX_BUFFER_LIMIT * 0.7) break;
+                    }
+                }
+                renderFileHistory();
             }
         }
 
