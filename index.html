@@ -527,6 +527,33 @@
         </div>
     </div>
 
+    <!-- Direct Hard Disk Storage Prompt for Large Files (>=100MB) -->
+    <div id="disk-prompt-card" class="fixed inset-0 bg-black/75 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-panel max-w-sm w-full rounded-3xl p-6 space-y-4 text-center shadow-2xl relative border">
+            <div class="w-12 h-12 mx-auto bg-lime-500/20 text-lime-600 dark:text-lime-400 rounded-2xl flex items-center justify-center border border-lime-500/30">
+                <i data-lucide="hard-drive-download" class="w-6 h-6 text-lime-500"></i>
+            </div>
+            <div>
+                <span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-lime-500/20 text-lime-600 dark:text-lime-400 border border-lime-500/30 uppercase tracking-wider">Direct Storage Stream</span>
+                <h3 class="text-base font-extrabold text-slate-900 dark:text-white mt-1.5">Save File to Storage</h3>
+                <p id="disk-prompt-filename" class="text-xs font-mono font-bold text-slate-800 dark:text-white mt-1 truncate max-w-[260px] mx-auto">filename.ext</p>
+                <p id="disk-prompt-filesize" class="text-[11px] font-mono text-lime-600 dark:text-lime-400 font-bold mt-0.5">0 MB</p>
+                <p class="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                    Choose a folder on your hard disk. The file will stream chunk-by-chunk directly into storage with zero RAM usage.
+                </p>
+            </div>
+            <div class="flex gap-2 pt-1">
+                <button onclick="declineDiskTransfer()" class="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 font-bold py-2.5 rounded-xl text-xs transition">
+                    Decline
+                </button>
+                <button onclick="acceptDiskTransfer()" class="flex-1 theme-accent-btn font-bold py-2.5 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span>Save to Storage</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Symbolic Guide Modal -->
     <div id="how-to-use-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
         <div class="glass-panel max-w-md w-full rounded-3xl p-6 space-y-5 relative shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border">
@@ -618,8 +645,9 @@
     </div>
 
     <script>
-        // 200 MB Batch / Single File Threshold & 300 MB RAM Cap
-        const DIRECT_DOWNLOAD_THRESHOLD = 200 * 1024 * 1024; 
+        // 100 MB Direct Storage Threshold & 300 MB RAM Cap
+        const DIRECT_STORAGE_THRESHOLD = 100 * 1024 * 1024;
+        const DIRECT_DOWNLOAD_THRESHOLD = 100 * 1024 * 1024; 
         const RAM_MAX_BUFFER_LIMIT = 300 * 1024 * 1024;      
         const PEER_PREFIX = "ls-lan-v6-";
 
@@ -629,7 +657,9 @@
         let batchDirectMode = false;
         let senderAckTimeout = null;
 
-        // OPFS Zero-RAM Direct Disk Streaming
+        // Direct Hard Disk Streaming handles (File System Access API & OPFS)
+        let directWritableStream = null;
+        let directFileHandle = null;
         let opfsWritable = null;
         let opfsFileHandle = null;
 
@@ -1561,27 +1591,79 @@
 
             receivedChunks = [];
             receivedSize = 0;
+            directWritableStream = null;
+            directFileHandle = null;
 
-            const isDirect = data.isDirect || batchDirectMode || (data.size >= DIRECT_DOWNLOAD_THRESHOLD);
+            const isLarge = (data.size >= DIRECT_STORAGE_THRESHOLD) || data.isDirectStorage || (data.size >= DIRECT_DOWNLOAD_THRESHOLD);
 
-            // Zero-RAM Direct Disk Stream: stream chunk-by-chunk into disk storage
-            if (isDirect) {
-                await initDiskWriter(data.name);
+            if (isLarge) {
+                // Large File (>=100MB): Prompt receiver to choose destination storage BEFORE transfer starts!
+                // This gives transient user activation to showSaveFilePicker so chunks stream directly to hard disk
+                const promptCard = document.getElementById('disk-prompt-card');
+                const nameEl = document.getElementById('disk-prompt-filename');
+                const sizeEl = document.getElementById('disk-prompt-filesize');
+
+                if (nameEl) nameEl.innerText = data.name;
+                if (sizeEl) sizeEl.innerText = formatBytes(data.size);
+                if (promptCard) promptCard.classList.remove('hidden');
+                lucide.createIcons();
             } else {
-                opfsWritable = null;
-                opfsFileHandle = null;
+                // Under 100MB: Auto-accept and stream into RAM & Files & History
+                if (activeDataConn && activeDataConn.open) {
+                    sendControlMessage(activeDataConn, { type: 'accept', name: data.name, resumeOffset: 0 });
+                }
+                showProgressUI(data.name, false, data.size);
+                updateProgressUI(0, data.size);
+            }
+        }
+
+        async function acceptDiskTransfer() {
+            document.getElementById('disk-prompt-card').classList.add('hidden');
+            if (!incomingMeta || !activeDataConn || !activeDataConn.open) return;
+
+            const fileName = incomingMeta.name;
+
+            if ('showSaveFilePicker' in window) {
+                try {
+                    directFileHandle = await window.showSaveFilePicker({
+                        suggestedName: fileName
+                    });
+                    directWritableStream = await directFileHandle.createWritable();
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        showToast("File save cancelled", "rose");
+                        if (activeDataConn && activeDataConn.open) {
+                            sendControlMessage(activeDataConn, { type: 'transfer_cancel' });
+                        }
+                        incomingMeta = null;
+                        return;
+                    }
+                    directWritableStream = null;
+                }
+            } else {
+                // Fallback for browsers without showSaveFilePicker (e.g. mobile Safari / OPFS)
+                await initDiskWriter(fileName);
             }
 
-            // Zero-prompt auto-accept: Streams directly to disk/downloads without asking
+            receivedChunks = [];
+            receivedSize = 0;
+
+            // Inform sender to start streaming chunks directly to our disk stream
+            sendControlMessage(activeDataConn, { type: 'accept', name: fileName, resumeOffset: 0 });
+            showProgressUI(fileName, false, incomingMeta.size);
+            updateProgressUI(0, incomingMeta.size);
+            showToast(`Streaming ${fileName} directly to storage...`, "emerald");
+        }
+
+        function declineDiskTransfer() {
+            document.getElementById('disk-prompt-card').classList.add('hidden');
             if (activeDataConn && activeDataConn.open) {
-                sendControlMessage(activeDataConn, { type: 'accept', name: data.name, resumeOffset: 0 });
+                sendControlMessage(activeDataConn, { type: 'transfer_cancel' });
             }
-            showProgressUI(data.name, false, data.size);
-            updateProgressUI(0, data.size);
-
-            if (isDirect) {
-                showToast(`Receiving ${data.name} directly to storage...`, "emerald");
-            }
+            showToast("File transfer declined", "amber");
+            incomingMeta = null;
+            receivedChunks = [];
+            receivedSize = 0;
         }
 
         function handleSenderFileCompletion() {
@@ -1650,18 +1732,28 @@
         async function handleIncomingChunk(chunkBuffer) {
             if (!incomingMeta) return;
             
-            if (opfsWritable) {
+            const chunkSize = chunkBuffer.byteLength || chunkBuffer.size || 0;
+            receivedSize += chunkSize;
+
+            if (directWritableStream) {
+                // DIRECT DISK STREAM VIA File System Access API:
+                // Written straight to user's chosen folder on hard disk!
+                // NEVER pushed to receivedChunks array; RAM remains flat at 0 MB!
+                try {
+                    await directWritableStream.write(chunkBuffer);
+                } catch (writeErr) {
+                    console.error("Direct disk write error:", writeErr);
+                }
+            } else if (opfsWritable) {
+                // OPFS disk stream fallback
                 try {
                     await opfsWritable.write(chunkBuffer);
-                    receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
-                    // chunkBuffer is written to disk and deallocated; NOT kept in RAM
                 } catch (writeErr) {
                     receivedChunks.push(chunkBuffer);
-                    receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
                 }
             } else {
+                // Files <= 100MB: stored in RAM for Files & History preview
                 receivedChunks.push(chunkBuffer);
-                receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
             }
             
             const now = performance.now();
@@ -1694,10 +1786,31 @@
                     dirBadge.className = "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0";
                 }
 
-                const isDirect = meta.isDirect || batchDirectMode || (meta.size >= DIRECT_DOWNLOAD_THRESHOLD);
+                if (directWritableStream) {
+                    // DIRECT HARD DISK STREAM COMPLETED!
+                    // Close the stream so the OS flushes the file.
+                    await directWritableStream.close();
+                    directWritableStream = null;
+                    directFileHandle = null;
 
-                if (opfsWritable || isDirect) {
-                    // DIRECT DISK MODE: Streamed directly to disk without RAM retention
+                    // The file is ALREADY on the hard disk in the chosen destination folder!
+                    // No download prompt needed, no URL.createObjectURL, zero RAM used!
+                    const fileObj = {
+                        name: meta.name,
+                        size: meta.size,
+                        mime: meta.mime || detectMimeByName(meta.name),
+                        blob: null, 
+                        url: null,  
+                        isSent: false,
+                        isDiskSaved: true,
+                        transferSpeed: avgSpeed,
+                        timestamp: Date.now()
+                    };
+                    saveFileToDB(fileObj);
+                    addFileToHistory(fileObj);
+                    showToast(`Saved ${meta.name} directly to hard disk!`, "emerald");
+                } else if (opfsWritable || meta.size >= DIRECT_STORAGE_THRESHOLD) {
+                    // OPFS fallback mode
                     if (opfsWritable) {
                         try {
                             await opfsWritable.close();
@@ -1742,9 +1855,9 @@
                     };
                     saveFileToDB(fileObj);
                     addFileToHistory(fileObj);
-                    showToast(`Saved ${meta.name} directly to Downloads!`, "emerald");
+                    showToast(`Saved ${meta.name} to storage!`, "emerald");
                 } else {
-                    // < 200 MB: Save to RAM and Files & History
+                    // < 100 MB: Save to RAM and Files & History
                     saveReceivedFile(chunksToSave, meta.name, meta.mime, avgSpeed);
                     enforceAutoRamLimit();
                 }
@@ -1795,12 +1908,10 @@
 
             if (!files || files.length === 0) return;
 
-            // SENSE TOTAL BATCH SIZE: Detect if multiple files or single file exceeds 200 MB
             const batchSize = files.reduce((acc, f) => acc + (f.size || 0), 0);
             activeBatchTotalSize += batchSize;
-            activeBatchIsDirect = (activeBatchTotalSize >= DIRECT_DOWNLOAD_THRESHOLD);
+            activeBatchIsDirect = (activeBatchTotalSize >= DIRECT_STORAGE_THRESHOLD);
 
-            // Announce batch descriptor to receiver so it enters direct download mode with zero prompts
             if (activeDataConn && activeDataConn.open) {
                 sendControlMessage(activeDataConn, {
                     type: 'batch_meta',
@@ -1844,12 +1955,15 @@
             lastAttemptedFile = currentTransferFile;
             
             showProgressUI(currentTransferFile.name, true, currentTransferFile.size);
+            const isDirect = activeBatchIsDirect || (currentTransferFile.size >= DIRECT_STORAGE_THRESHOLD);
+
             const payloadMeta = { 
                 type: 'offer', 
                 name: currentTransferFile.name, 
                 size: currentTransferFile.size, 
                 mime: currentTransferFile.type || detectMimeByName(currentTransferFile.name),
-                isDirect: activeBatchIsDirect || (currentTransferFile.size >= DIRECT_DOWNLOAD_THRESHOLD),
+                isDirectStorage: isDirect,
+                isDirect: isDirect,
                 queueRemaining: pendingFileQueue.length
             };
             
@@ -2030,6 +2144,16 @@
             lastAttemptedFile = null;
             isTransferPaused = false;
             isTransferCancelled = false;
+            if (directWritableStream) {
+                try { directWritableStream.abort(); } catch(e) {}
+                directWritableStream = null;
+                directFileHandle = null;
+            }
+            if (opfsWritable) {
+                try { opfsWritable.abort(); } catch(e) {}
+                opfsWritable = null;
+                opfsFileHandle = null;
+            }
             releaseWakeLock();
             hideProgressUI(true);
         }
