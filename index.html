@@ -1586,6 +1586,11 @@
                 }
                 showToast(`File saved on receiver device!`, "emerald");
                 hideProgressUI(false);
+
+                // Advance to next file in queue if multiple files were selected
+                if (pendingFileQueue.length > 0 && !isTransferring) {
+                    setTimeout(processNextFileInQueue, 250);
+                }
             }
         }
 
@@ -1970,49 +1975,10 @@
 
             if (!files || files.length === 0) return;
 
-            const totalBatchBytes = files.reduce((sum, f) => sum + (f.size || 0), 0);
-
-            // If multiple files and total size > 100 MB: bundle into single ZIP for direct storage
-            if (files.length > 1 && totalBatchBytes >= DISK_STREAM_THRESHOLD) {
-                showToast(`Total size >100 MB: Bundling ${files.length} files into ZIP...`, "lime");
-                showProgressUI(`Archiving ${files.length} files into ZIP...`, true, totalBatchBytes);
-
-                try {
-                    if (typeof JSZip === 'undefined') {
-                        throw new Error("JSZip not ready");
-                    }
-                    const zip = new JSZip();
-                    for (let i = 0; i < files.length; i++) {
-                        const f = files[i];
-                        const entryPath = f.webkitRelativePath || f.name;
-                        zip.file(entryPath, f);
-                    }
-
-                    // Zero-CPU uncompressed STORE packaging
-                    const zipBlob = await zip.generateAsync({
-                        type: "blob",
-                        compression: "STORE"
-                    }, (meta) => {
-                        const pct = Math.round(meta.percent);
-                        const pBar = document.getElementById('progress-bar');
-                        const pLabel = document.getElementById('percent-label');
-                        if (pBar) pBar.style.width = pct + '%';
-                        if (pLabel) pLabel.innerText = `${pct}% (Zipping)`;
-                    });
-
-                    const timeStr = new Date().toISOString().slice(0,10);
-                    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-                    const zipFilename = `LimeShare_Bundle_${timeStr}_${randomSuffix}.zip`;
-                    const bundledZip = new File([zipBlob], zipFilename, { type: 'application/zip' });
-
-                    pendingFileQueue.push(bundledZip);
-                    showToast(`ZIP ready (${formatBytes(bundledZip.size)}). Streaming directly...`, "emerald");
-                } catch (err) {
-                    console.error("ZIP packaging error, falling back to individual files:", err);
-                    pendingFileQueue.push(...files);
-                }
-            } else {
-                pendingFileQueue.push(...files);
+            // Push all files directly to the queue for sequential 1-by-1 transfer (no ZIP compression to avoid browser tab crashes)
+            pendingFileQueue.push(...files);
+            if (files.length > 1) {
+                showToast(`Queued ${files.length} file(s) for sequential transfer`, "lime");
             }
 
             if (!isTransferring) {
@@ -2235,8 +2201,13 @@
 
             currentTransferFile = null;
             lastAttemptedFile = null;
+            isTransferring = false;
             resetFileInputs();
-            setTimeout(processNextFileInQueue, 100);
+
+            // Allow receiver to finalize disk write/download before starting next queued file
+            if (pendingFileQueue.length > 0) {
+                setTimeout(processNextFileInQueue, 500);
+            }
         }
 
         function abortTransfer() {
