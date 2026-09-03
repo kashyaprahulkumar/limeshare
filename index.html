@@ -1977,7 +1977,12 @@
 
             // Calculate cumulative batch payload
             const batchBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
-            activeBatchTotalSize = (pendingFileQueue.length > 0) ? (activeBatchTotalSize + batchBytes) : batchBytes;
+            if (pendingFileQueue.length === 0 && !isTransferring) {
+                activeBatchTotalSize = batchBytes;
+            } else {
+                activeBatchTotalSize += batchBytes;
+            }
+
             activeBatchIsDirect = (activeBatchTotalSize > DIRECT_DOWNLOAD_THRESHOLD);
 
             // Tag each file with batch context
@@ -1990,7 +1995,7 @@
             if (files.length > 1) {
                 showToast(
                     activeBatchIsDirect 
-                        ? `Queued ${files.length} files (${formatBytes(batchBytes)}) • Auto-Direct Download` 
+                        ? `Queued ${files.length} files (${formatBytes(batchBytes)}) • Auto-Direct to Downloads` 
                         : `Queued ${files.length} file(s) for sequential transfer`, 
                     "lime"
                 );
@@ -2002,7 +2007,7 @@
         }
 
         function processNextFileInQueue() {
-            if (isTransferring) return; // Prevent race conditions & double-stepping
+            if (isTransferring) return; // Prevent double-stepping
 
             if (pendingFileQueue.length === 0) {
                 isTransferring = false;
@@ -2218,27 +2223,39 @@
             saveFileToDB(fileObj);
             addFileToHistory(fileObj);
 
-            // Auto-complete sender HUD fallback: if receiver acknowledgment takes > 2.5s, auto-dismiss cleanly
-            setTimeout(() => {
-                if (fileLabel && fileLabel.innerText.includes('Sent')) {
-                    fileLabel.innerText = `Completed & Saved!`;
+            resetFileInputs();
+
+            // Safety acknowledgment fallback timer in case receiver ack is delayed
+            if (senderAckTimeout) clearTimeout(senderAckTimeout);
+            senderAckTimeout = setTimeout(() => {
+                if (isTransferring && currentTransferFile === file) {
+                    handleSenderFileCompletion(file.name, avgSpeed);
                 }
-                hideProgressUI(false);
-            }, 2500);
+            }, 3500);
+        }
+
+        function handleSenderFileCompletion(fileName, avgSpeed = '') {
+            const fileLabel = document.getElementById('file-info-label');
+            if (fileLabel) fileLabel.innerText = `Completed & Saved!`;
+            const etaLabel = document.getElementById('eta-label');
+            if (etaLabel) etaLabel.innerText = "Completed";
+            const dirBadge = document.getElementById('transfer-direction-badge');
+            if (dirBadge) {
+                dirBadge.innerText = "Finished";
+                dirBadge.className = "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0";
+            }
+
+            showToast(`${fileName || 'File'} sent & saved!`, "emerald");
 
             currentTransferFile = null;
             lastAttemptedFile = null;
             isTransferring = false;
-            resetFileInputs();
 
-            // Allow receiver to finalize disk write/download before starting next queued file
             if (pendingFileQueue.length > 0) {
-                setTimeout(() => {
-                    if (!isTransferring && pendingFileQueue.length > 0) {
-                        processNextFileInQueue();
-                    }
-                }, 300);
+                // Step smoothly to the next queued file
+                setTimeout(processNextFileInQueue, 250);
             } else {
+                hideProgressUI(false);
                 activeBatchTotalSize = 0;
                 activeBatchIsDirect = false;
             }
@@ -3176,6 +3193,7 @@
                             if (input) input.value = decodedText.trim().toUpperCase();
                             stopQRScanner();
                             connectToPeer();
+                            closePairingModal();
                         },
                         () => {}
                     ).catch(() => {
