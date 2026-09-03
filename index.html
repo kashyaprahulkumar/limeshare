@@ -1960,7 +1960,7 @@
             if (folderInput) folderInput.value = '';
         }
 
-        function queueFilesForTransfer(files) {
+        async function queueFilesForTransfer(files) {
             if (!isConnected || !activeDataConn) {
                 openPairingModal();
                 showToast("Please pair with a device first", "lime");
@@ -1968,7 +1968,53 @@
                 return;
             }
 
-            pendingFileQueue.push(...files);
+            if (!files || files.length === 0) return;
+
+            const totalBatchBytes = files.reduce((sum, f) => sum + (f.size || 0), 0);
+
+            // If multiple files and total size > 100 MB: bundle into single ZIP for direct storage
+            if (files.length > 1 && totalBatchBytes >= DISK_STREAM_THRESHOLD) {
+                showToast(`Total size >100 MB: Bundling ${files.length} files into ZIP...`, "lime");
+                showProgressUI(`Archiving ${files.length} files into ZIP...`, true, totalBatchBytes);
+
+                try {
+                    if (typeof JSZip === 'undefined') {
+                        throw new Error("JSZip not ready");
+                    }
+                    const zip = new JSZip();
+                    for (let i = 0; i < files.length; i++) {
+                        const f = files[i];
+                        const entryPath = f.webkitRelativePath || f.name;
+                        zip.file(entryPath, f);
+                    }
+
+                    // Zero-CPU uncompressed STORE packaging
+                    const zipBlob = await zip.generateAsync({
+                        type: "blob",
+                        compression: "STORE"
+                    }, (meta) => {
+                        const pct = Math.round(meta.percent);
+                        const pBar = document.getElementById('progress-bar');
+                        const pLabel = document.getElementById('percent-label');
+                        if (pBar) pBar.style.width = pct + '%';
+                        if (pLabel) pLabel.innerText = `${pct}% (Zipping)`;
+                    });
+
+                    const timeStr = new Date().toISOString().slice(0,10);
+                    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+                    const zipFilename = `LimeShare_Bundle_${timeStr}_${randomSuffix}.zip`;
+                    const bundledZip = new File([zipBlob], zipFilename, { type: 'application/zip' });
+
+                    pendingFileQueue.push(bundledZip);
+                    showToast(`ZIP ready (${formatBytes(bundledZip.size)}). Streaming directly...`, "emerald");
+                } catch (err) {
+                    console.error("ZIP packaging error, falling back to individual files:", err);
+                    pendingFileQueue.push(...files);
+                }
+            } else {
+                pendingFileQueue.push(...files);
+            }
+
             if (!isTransferring) {
                 processNextFileInQueue();
             }
@@ -2405,11 +2451,33 @@
         }
 
         function clearFileHistory() {
+            fileHistory.forEach(file => {
+                if (file.url) {
+                    try { URL.revokeObjectURL(file.url); } catch(e) {}
+                }
+            });
             fileHistory = [];
             selectedFileIndices.clear();
             clearDBFiles();
             renderFileHistory();
-            showToast("Transfer history cleared", "rose");
+            showToast("Transfer history cleared & RAM freed", "rose");
+        }
+
+        function freeMemoryCache() {
+            let freedCount = 0;
+            fileHistory.forEach(file => {
+                if (file.url) {
+                    try { URL.revokeObjectURL(file.url); } catch(e) {}
+                    file.url = null;
+                    file.blob = null;
+                    file.memoryFreed = true;
+                    freedCount++;
+                }
+            });
+            // Clear binary blobs stored in IndexedDB to avoid storage pressure
+            clearDBFiles();
+            renderFileHistory();
+            showToast(`Freed memory for ${freedCount} file(s)! RAM optimized.`, "emerald");
         }
 
         function saveReceivedFile(chunks, name, mime, transferSpeed = '') {
@@ -2418,13 +2486,16 @@
                 const blob = new Blob(chunks, { type: detectedMime || 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
 
+                const isOver100MB = blob.size >= (100 * 1024 * 1024);
+
                 const fileObj = {
                     name: name,
                     size: blob.size,
                     mime: detectedMime,
-                    blob: blob.size < 25 * 1024 * 1024 ? blob : null, // Prevent mobile IndexedDB quota crash on large files
-                    url: url,
+                    blob: (blob.size < 25 * 1024 * 1024 && !isOver100MB) ? blob : null, // Prevent RAM/IndexedDB bloat
+                    url: isOver100MB ? null : url,
                     isSent: false,
+                    isDiskSaved: isOver100MB,
                     transferSpeed: transferSpeed,
                     timestamp: Date.now()
                 };
@@ -2439,10 +2510,8 @@
                     sendControlMessage(activeDataConn, { type: 'file_saved', name: name });
                 }
 
-                const isOver100MB = blob.size >= (100 * 1024 * 1024);
-
                 if (isOver100MB) {
-                    // Files > 100 MB: Directly save to device storage without asking anything
+                    // Files >= 100 MB: Directly save to device downloads folder and immediately release RAM
                     try {
                         const a = document.createElement('a');
                         a.href = url;
@@ -2451,7 +2520,9 @@
                         a.click();
                         setTimeout(() => {
                             if (document.body.contains(a)) document.body.removeChild(a);
-                        }, 1200);
+                            // Revoke Object URL immediately to free RAM
+                            URL.revokeObjectURL(url);
+                        }, 1500);
                     } catch (e) {
                         console.error("Direct save trigger error:", e);
                     }
@@ -2634,6 +2705,13 @@
             if (selectedFileIndices.size === 0) return;
             const count = selectedFileIndices.size;
             
+            selectedFileIndices.forEach(idx => {
+                const f = fileHistory[idx];
+                if (f && f.url) {
+                    try { URL.revokeObjectURL(f.url); } catch(e) {}
+                }
+            });
+
             fileHistory = fileHistory.filter((_, idx) => !selectedFileIndices.has(idx));
             selectedFileIndices.clear();
             
@@ -2657,7 +2735,7 @@
             }
 
             renderFileHistory();
-            showToast(`Deleted ${count} file(s)`, "rose");
+            showToast(`Deleted ${count} file(s) and freed memory`, "rose");
         }
 
         function renderFileHistory() {
@@ -2710,7 +2788,7 @@
                     <div class="flex gap-1.5 flex-shrink-0">
                         ${(isMedia && file.url) ? `<button onclick="openMediaPreviewByIndex(${index})" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Preview</button>` : ''}
                         ${file.url ? `<a href="${file.url}" download="${escapeHtml(file.name)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Save</a>` : ''}
-                        ${file.isDiskSaved ? `<span class="text-[10px] text-sky-500 font-bold px-2 py-1 bg-sky-500/10 rounded-lg flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> On Storage</span>` : ''}
+                        ${(file.isDiskSaved || file.memoryFreed || !file.url) ? `<span class="text-[10px] text-sky-500 font-bold px-2 py-1 bg-sky-500/10 rounded-lg flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> On Storage</span>` : ''}
                     </div>
                 `;
                 list.appendChild(row);
