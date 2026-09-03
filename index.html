@@ -3392,6 +3392,48 @@
             showToast(enabled ? "Security Shield Active" : "Shield Disabled", enabled ? "emerald" : "amber");
         }
 
+        function savePartialToDB(fileId, meta, chunks, receivedSize) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readwrite');
+                tx.objectStore('partials').put({
+                    fileId: fileId,
+                    meta: meta,
+                    chunks: chunks,
+                    receivedSize: receivedSize,
+                    timestamp: Date.now()
+                });
+            } catch(e) {}
+        }
+
+        function removePartialFromDB(fileId) {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readwrite');
+                tx.objectStore('partials').delete(fileId);
+            } catch(e) {}
+        }
+
+        function loadPartialsFromDB() {
+            if (!db) return;
+            try {
+                const tx = db.transaction('partials', 'readonly');
+                const req = tx.objectStore('partials').getAll();
+                req.onsuccess = () => {
+                    const list = req.result || [];
+                    list.forEach(item => {
+                        if (item && item.fileId) {
+                            activePartialTransfers[item.fileId] = {
+                                meta: item.meta,
+                                chunks: item.chunks,
+                                receivedSize: item.receivedSize
+                            };
+                        }
+                    });
+                };
+            } catch(e) {}
+        }
+
         function initDB() {
             return new Promise((resolve) => {
                 try {
@@ -3410,8 +3452,12 @@
                     };
                     req.onsuccess = (e) => {
                         db = e.target.result;
-                        loadHistoryFromDB();
-                        loadPartialsFromDB();
+                        if (typeof loadHistoryFromDB === 'function') {
+                            loadHistoryFromDB();
+                        }
+                        if (typeof loadPartialsFromDB === 'function') {
+                            loadPartialsFromDB();
+                        }
                         resolve(db);
                     };
                     req.onerror = () => resolve(null);
@@ -3509,11 +3555,13 @@
                 req.onsuccess = () => {
                     const list = req.result || [];
                     list.forEach(item => {
-                        activePartialTransfers[item.fileId] = {
-                            meta: item.meta,
-                            chunks: item.chunks,
-                            receivedSize: item.receivedSize
-                        };
+                        if (item && item.fileId) {
+                            activePartialTransfers[item.fileId] = {
+                                meta: item.meta,
+                                chunks: item.chunks,
+                                receivedSize: item.receivedSize
+                            };
+                        }
                     });
                 };
             } catch(e) {}
