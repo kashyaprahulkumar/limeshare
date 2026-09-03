@@ -2,21 +2,11 @@
 <html lang="en" data-theme="lime">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>LimeShare • Wi-Fi Direct Peer Share</title>
     
-    <!-- Primary SEO & Meta Tags -->
     <meta name="description" content="LimeShare is a private, lightning-fast peer-to-peer (P2P) local Wi-Fi file sharing tool. Direct device-to-device file transfer with zero cloud storage.">
-    <meta name="keywords" content="P2P file transfer, local wifi share, direct drop, AirDrop for Android and Windows, encrypted peer sharing, no cloud transfer">
-    <meta name="author" content="LimeShare">
-    <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#84cc16">
-
-    <!-- Open Graph Tags -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="LimeShare • Fast Local P2P Wi-Fi Share">
-    <meta property="og:description" content="Share unlimited files and folders directly across your local Wi-Fi at maximum speeds. No file size limits, zero cloud storage.">
-    <meta property="og:image" content="https://placehold.co/1200x630/84cc16/ffffff?text=LimeShare+Direct+Drop">
 
     <!-- Web App Manifest for PWA Support -->
     <link rel="manifest" id="pwa-manifest-link">
@@ -34,7 +24,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- Html5-QRCode for Webcam QR Scanner -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <!-- JSZip for in-browser file compression and ZIP archiving -->
+    <!-- JSZip for optional in-browser file archiving -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -46,13 +36,13 @@
 
         :root[data-theme="lime"] {
             --bg-main: #fcfdfc;
-            --radar-line: rgba(34, 197, 94, 0.12);
+            --radar-line: rgba(34, 197, 94, 0.14);
             --radar-glow: rgba(132, 204, 22, 0.2);
             --accent-primary: #84cc16;
             --accent-secondary: #22c55e;
             --accent-dark: #15803d;
-            --card-bg: rgba(255, 255, 255, 0.92);
-            --card-border: rgba(226, 232, 240, 0.8);
+            --card-bg: rgba(255, 255, 255, 0.94);
+            --card-border: rgba(226, 232, 240, 0.85);
             --text-main: #0f172a;
             --text-sub: #64748b;
             --node-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.25);
@@ -60,13 +50,13 @@
 
         :root[data-theme="dark-radar"] {
             --bg-main: #080c0a;
-            --radar-line: rgba(34, 197, 94, 0.15);
+            --radar-line: rgba(34, 197, 94, 0.16);
             --radar-glow: rgba(132, 204, 22, 0.25);
             --accent-primary: #a3e635;
             --accent-secondary: #4ade80;
             --accent-dark: #16a34a;
-            --card-bg: rgba(15, 23, 18, 0.88);
-            --card-border: rgba(34, 197, 94, 0.2);
+            --card-bg: rgba(15, 23, 18, 0.90);
+            --card-border: rgba(34, 197, 94, 0.22);
             --text-main: #f0fdf4;
             --text-sub: #86efac;
             --node-shadow: 0 10px 30px -5px rgba(74, 222, 128, 0.3);
@@ -74,12 +64,12 @@
 
         :root[data-theme="cyber"] {
             --bg-main: #030712;
-            --radar-line: rgba(56, 189, 248, 0.15);
+            --radar-line: rgba(56, 189, 248, 0.16);
             --radar-glow: rgba(56, 189, 248, 0.3);
             --accent-primary: #38bdf8;
             --accent-secondary: #818cf8;
             --accent-dark: #0284c7;
-            --card-bg: rgba(15, 23, 42, 0.9);
+            --card-bg: rgba(15, 23, 42, 0.92);
             --card-border: rgba(56, 189, 248, 0.25);
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
@@ -91,7 +81,9 @@
             background-color: var(--bg-main);
             color: var(--text-main);
             overflow-x: hidden;
-            transition: background-color 0.4s ease, color 0.4s ease;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .font-mono {
@@ -101,8 +93,8 @@
         .radar-container {
             position: relative;
             width: 100%;
-            max-width: 800px;
-            height: 520px;
+            max-width: clamp(310px, 86vw, 680px);
+            height: clamp(280px, 46vh, 440px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -114,40 +106,24 @@
             border-radius: 50%;
             border: 1px solid var(--radar-line);
             pointer-events: none;
-            transition: all 0.5s ease;
+            transition: all 0.4s ease;
         }
 
-        .radar-circle-1 { width: 220px; height: 220px; }
-        .radar-circle-2 { width: 380px; height: 380px; }
-        .radar-circle-3 { width: 540px; height: 540px; }
-        .radar-circle-4 { width: 700px; height: 700px; }
-
-        @media (max-width: 767px) {
-            .radar-container {
-                height: 360px;
-                width: 100%;
-                max-width: 100vw;
-                overflow: visible;
-            }
-            .radar-circle-1 { width: 130px; height: 130px; }
-            .radar-circle-2 { width: 210px; height: 210px; }
-            .radar-circle-3 { width: 280px; height: 280px; }
-            .radar-circle-4 { width: 340px; height: 340px; max-width: 90vw; max-height: 90vw; }
-            .radar-pulse { width: 250px; height: 250px; max-width: 78vw; max-height: 78vw; }
-            .upload-circle-btn { width: 135px; height: 135px; }
-            .upload-circle-btn h2 { font-size: 0.875rem; }
-        }
+        .radar-circle-1 { width: clamp(120px, 25vw, 190px); height: clamp(120px, 25vw, 190px); }
+        .radar-circle-2 { width: clamp(190px, 42vw, 320px); height: clamp(190px, 42vw, 320px); }
+        .radar-circle-3 { width: clamp(260px, 60vw, 450px); height: clamp(260px, 60vw, 450px); }
+        .radar-circle-4 { width: clamp(320px, 78vw, 580px); height: clamp(320px, 78vw, 580px); }
 
         @keyframes radarSweep {
             0% { transform: scale(0.3); opacity: 0.8; }
-            50% { opacity: 0.4; }
-            100% { transform: scale(1.6); opacity: 0; }
+            50% { opacity: 0.35; }
+            100% { transform: scale(1.55); opacity: 0; }
         }
 
         .radar-pulse {
             position: absolute;
-            width: 400px;
-            height: 400px;
+            width: clamp(260px, 58vw, 420px);
+            height: clamp(260px, 58vw, 420px);
             border-radius: 50%;
             border: 1.5px solid var(--accent-primary);
             animation: radarSweep 4s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
@@ -160,11 +136,11 @@
 
         .upload-circle-btn {
             position: relative;
-            width: 175px;
-            height: 175px;
+            width: clamp(120px, 25vw, 155px);
+            height: clamp(120px, 25vw, 155px);
             border-radius: 50%;
             background: white;
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08), 0 0 0 8px rgba(132, 204, 22, 0.15);
+            box-shadow: 0 15px 35px -8px rgba(0, 0, 0, 0.08), 0 0 0 6px rgba(132, 204, 22, 0.15);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -177,14 +153,14 @@
         [data-theme="dark-radar"] .upload-circle-btn,
         [data-theme="cyber"] .upload-circle-btn {
             background: #111827;
-            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5), 0 0 0 8px rgba(132, 204, 22, 0.2);
+            box-shadow: 0 15px 35px -8px rgba(0,0,0,0.5), 0 0 0 6px rgba(132, 204, 22, 0.2);
         }
 
         .upload-circle-ring {
             position: absolute;
-            inset: -4px;
+            inset: -3px;
             border-radius: 50%;
-            padding: 4px;
+            padding: 3px;
             background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary), #16a34a);
             -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             -webkit-mask-composite: xor;
@@ -193,12 +169,8 @@
         }
 
         .upload-circle-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 25px 50px -12px var(--node-shadow), 0 0 0 12px rgba(132, 204, 22, 0.25);
-        }
-
-        .upload-circle-btn:hover .upload-circle-ring {
-            transform: rotate(180deg);
+            transform: scale(1.04);
+            box-shadow: 0 20px 40px -10px var(--node-shadow), 0 0 0 10px rgba(132, 204, 22, 0.25);
         }
 
         .glass-panel {
@@ -221,78 +193,78 @@
         }
 
         .drag-over-active {
-            transform: scale(1.12) !important;
-            box-shadow: 0 0 0 16px rgba(132, 204, 22, 0.35) !important;
+            transform: scale(1.1) !important;
+            box-shadow: 0 0 0 14px rgba(132, 204, 22, 0.35) !important;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between selection:bg-lime-500 selection:text-white">
+<body class="h-[100dvh] max-h-[100dvh] overflow-hidden flex flex-col justify-between selection:bg-lime-500 selection:text-white">
 
-    <header class="w-full max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between z-30">
+    <header class="w-full max-w-7xl mx-auto px-3 sm:px-6 py-2 flex items-center justify-between z-30 flex-shrink-0">
         <!-- Brand Logo -->
-        <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.reload()">
-            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-lime-400 to-green-600 flex items-center justify-center text-white shadow-lg shadow-lime-500/30">
-                <i data-lucide="wifi" class="w-5 h-5 text-white"></i>
+        <div class="flex items-center gap-2.5 cursor-pointer" onclick="window.location.reload()">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-lime-400 to-green-600 flex items-center justify-center text-white shadow-md shadow-lime-500/30">
+                <i data-lucide="wifi" class="w-4 h-4 text-white"></i>
             </div>
             <div>
                 <div class="flex items-center gap-1.5">
-                    <span class="text-xs font-semibold text-lime-600 tracking-wider uppercase">P2P</span>
-                    <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">LimeShare</h1>
+                    <span class="text-[10px] font-bold text-lime-600 tracking-wider uppercase">P2P</span>
+                    <h1 class="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white leading-none">LimeShare</h1>
                 </div>
-                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Wi-Fi Direct Peer Drop</p>
+                <p class="text-[9px] font-bold text-slate-400">Wi-Fi Direct Peer Drop</p>
             </div>
         </div>
 
-        <!-- Header Actions & Controls -->
+        <!-- Top Actions -->
         <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
             <!-- 6-Digit Device Code Badge -->
-            <button onclick="openPairingModal()" class="glass-panel px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 hover:border-lime-500 transition shadow-sm" title="Your Unique Device Code">
+            <button onclick="openPairingModal()" class="glass-panel px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border text-xs font-bold flex items-center gap-1.5 sm:gap-2 hover:border-lime-500 transition shadow-sm" title="Your Unique Device Code">
                 <span id="conn-status-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
-                <span id="my-code-display" class="font-mono text-lime-600 dark:text-lime-400 font-extrabold">------</span>
+                <span id="my-code-display" class="font-mono text-lime-600 dark:text-lime-400 font-extrabold text-[11px] sm:text-xs">------</span>
                 <i data-lucide="qr-code" class="w-3.5 h-3.5 text-slate-400"></i>
             </button>
 
             <!-- PWA Install Button -->
-            <button id="pwa-install-btn" onclick="triggerPwaInstall()" class="hidden glass-panel px-2.5 py-1.5 rounded-full border text-xs font-bold flex items-center gap-1.5 text-lime-600 dark:text-lime-400 hover:border-lime-500 transition shadow-sm" title="Install App to Device">
+            <button id="pwa-install-btn" onclick="triggerPwaInstall()" class="hidden glass-panel px-2 py-1 rounded-full border text-xs font-bold flex items-center gap-1 text-lime-600 dark:text-lime-400 hover:border-lime-500 transition shadow-sm" title="Install App to Device">
                 <i data-lucide="download-cloud" class="w-3.5 h-3.5 text-lime-500"></i>
-                <span class="hidden md:inline">Install</span>
+                <span class="hidden md:inline text-[11px]">Install</span>
             </button>
 
-            <!-- Symbolic Guide Modal Button -->
-            <button onclick="openHowToUseModal()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Visual Guide">
-                <i data-lucide="help-circle" class="w-4 h-4"></i>
+            <!-- Visual Guide Modal Button -->
+            <button onclick="openHowToUseModal()" class="glass-panel p-1.5 sm:p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Visual Guide">
+                <i data-lucide="help-circle" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
             </button>
 
             <!-- Mute Audio Toggle -->
-            <button id="audio-toggle-btn" onclick="toggleAudioMute()" class="glass-panel p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Mute/Unmute Audio">
-                <i id="audio-icon-on" data-lucide="volume-2" class="w-4 h-4 text-emerald-500"></i>
-                <i id="audio-icon-off" data-lucide="volume-x" class="w-4 h-4 text-rose-500 hidden"></i>
+            <button id="audio-toggle-btn" onclick="toggleAudioMute()" class="glass-panel p-1.5 sm:p-2 rounded-full border text-slate-600 dark:text-slate-300 hover:text-lime-600 transition" title="Mute/Unmute Audio">
+                <i id="audio-icon-on" data-lucide="volume-2" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500"></i>
+                <i id="audio-icon-off" data-lucide="volume-x" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 hidden"></i>
             </button>
 
             <!-- Anti-Attack Security Shield Toggle -->
-            <div class="hidden sm:flex items-center gap-1.5 glass-panel px-2.5 py-1 rounded-full border text-[11px] font-bold">
-                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i>
+            <div class="hidden sm:flex items-center gap-1.5 glass-panel px-2 py-1 rounded-full border text-[10px] font-bold">
+                <i data-lucide="shield-check" class="w-3 h-3 text-emerald-500"></i>
                 <span class="text-slate-500 dark:text-slate-400">Shield</span>
                 <label class="relative inline-flex items-center cursor-pointer ml-1">
                     <input type="checkbox" id="security-require-approval" class="sr-only peer" checked onchange="toggleSecurityMode(this.checked)">
-                    <div class="w-7 h-4 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
+                    <div class="w-6 h-3.5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1.5px] after:left-[1.5px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
             </div>
 
             <!-- Single Symbolic Theme Toggle Button -->
-            <button id="theme-toggle-btn" onclick="cycleTheme()" class="glass-panel p-2 rounded-full border text-slate-700 dark:text-slate-200 hover:text-lime-600 transition active:scale-95 flex items-center justify-center" title="Toggle Theme (Lime / Dark / Cyber)">
-                <i id="theme-icon" data-lucide="sun" class="w-4 h-4 text-lime-500"></i>
+            <button id="theme-toggle-btn" onclick="cycleTheme()" class="glass-panel p-1.5 sm:p-2 rounded-full border text-slate-700 dark:text-slate-200 hover:text-lime-600 transition active:scale-95 flex items-center justify-center" title="Toggle Theme (Lime / Dark / Cyber)">
+                <i id="theme-icon" data-lucide="sun" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-lime-500"></i>
             </button>
 
             <!-- 1-Click Magic Link Button -->
-            <button onclick="copyPairingLink()" class="theme-accent-btn px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow">
-                <i data-lucide="link" class="w-3.5 h-3.5"></i>
-                <span class="hidden sm:inline">Magic Link</span>
+            <button onclick="copyPairingLink()" class="theme-accent-btn px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow">
+                <i data-lucide="link" class="w-3 h-3"></i>
+                <span class="hidden sm:inline text-[11px]">Magic Link</span>
             </button>
         </div>
     </header>
 
-    <main class="flex-1 flex flex-col items-center justify-center relative px-2 sm:px-4 py-2 my-auto w-full overflow-hidden">
+    <main class="flex-1 min-h-0 flex flex-col items-center justify-center relative px-2 py-1 w-full overflow-hidden">
         <div class="radar-container">
             <div class="radar-pulse"></div>
             <div class="radar-pulse"></div>
@@ -304,38 +276,39 @@
 
             <!-- Central Content Focus (Dropzone) -->
             <div class="relative flex flex-col items-center justify-center z-20">
-                <!-- Central Circular Button -->
-                <div id="upload-circle" class="upload-circle-btn group" onclick="triggerFileUpload()">
+                <!-- Central Circular Button (Decoupled from input to prevent click loops) -->
+                <div id="upload-circle" class="upload-circle-btn group" onclick="triggerFileUpload(event)">
                     <div class="upload-circle-ring"></div>
-                    <input type="file" id="file-input" multiple class="hidden">
-                    
-                    <h2 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight group-hover:text-lime-600 transition">Upload Files</h2>
-                    <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Click or Drop</p>
+                    <h2 class="text-sm sm:text-base font-extrabold text-slate-800 dark:text-white tracking-tight group-hover:text-lime-600 transition">Upload Files</h2>
+                    <p class="text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Click or Drop</p>
                 </div>
 
+                <!-- Hidden Native File Inputs -->
+                <input type="file" id="file-input" multiple class="hidden" onchange="handleFileSelect(event)" onclick="event.stopPropagation()">
+                <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden" onchange="handleFolderSelect(event)" onclick="event.stopPropagation()">
+
                 <!-- Upload Folder Button attached below center -->
-                <div class="mt-5">
-                    <label onclick="handleFolderClick(event)" class="glass-panel hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold px-5 py-2 rounded-full border shadow-md flex items-center gap-2 cursor-pointer transition active:scale-95">
-                        <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden" onchange="handleFolderSelect(event)">
+                <div class="mt-3">
+                    <label onclick="handleFolderClick(event)" class="glass-panel hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-bold px-4 py-1.5 rounded-full border shadow-sm flex items-center gap-1.5 cursor-pointer transition active:scale-95">
                         <i data-lucide="folder" class="w-3.5 h-3.5 text-lime-600"></i>
                         <span>Upload Folder</span>
-                        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-lime-600"></i>
+                        <i data-lucide="arrow-right" class="w-3 h-3 text-lime-600"></i>
                     </label>
                 </div>
 
                 <!-- "You" Device Avatar Node -->
-                <div class="mt-4 flex flex-col items-center">
-                    <div id="my-avatar-ring" class="w-12 h-12 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow-lg text-slate-800 dark:text-white transition-all">
-                        <i data-lucide="radio" class="w-6 h-6 text-lime-500 animate-pulse"></i>
+                <div class="mt-2.5 flex flex-col items-center">
+                    <div id="my-avatar-ring" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow text-slate-800 dark:text-white transition-all">
+                        <i data-lucide="radio" class="w-4 h-4 sm:w-5 sm:h-5 text-lime-500 animate-pulse"></i>
                     </div>
-                    <div class="flex items-center gap-1 mt-1.5 cursor-pointer hover:text-lime-500 transition" onclick="editMyName()" title="Click to edit display name">
-                        <p id="my-name-display" class="text-xs font-extrabold text-slate-800 dark:text-white">You</p>
-                        <i data-lucide="edit-3" class="w-3 h-3 text-slate-400"></i>
+                    <div class="flex items-center gap-1 mt-1 cursor-pointer hover:text-lime-500 transition" onclick="editMyName()" title="Click to edit display name">
+                        <p id="my-name-display" class="text-[11px] font-extrabold text-slate-800 dark:text-white">You</p>
+                        <i data-lucide="edit-3" class="w-2.5 h-2.5 text-slate-400"></i>
                     </div>
-                    <p id="radar-status-text" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Online • Ready</p>
+                    <p id="radar-status-text" class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Online • Ready</p>
                     <!-- Real-Time Public STUN Connection Badge -->
-                    <div id="conn-details-badge" class="hidden mt-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 shadow-sm">
-                        <i data-lucide="globe" class="w-3 h-3 text-emerald-500"></i>
+                    <div id="conn-details-badge" class="hidden mt-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[8px] font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shadow-sm">
+                        <i data-lucide="globe" class="w-2.5 h-2.5 text-emerald-500"></i>
                         <span id="conn-details-text">STUN • Resolving</span>
                     </div>
                 </div>
@@ -346,12 +319,12 @@
         </div>
     </main>
 
-    <div id="progress-card" class="fixed bottom-24 left-1/2 -translate-x-1/2 max-w-md w-[92%] glass-panel p-4 rounded-2xl border shadow-2xl z-40 hidden space-y-3">
+    <div id="progress-card" class="fixed bottom-20 left-1/2 -translate-x-1/2 max-w-md w-[92%] glass-panel p-3.5 rounded-2xl border shadow-2xl z-40 hidden space-y-2.5">
         <!-- Top Row: Direction badge, File name, and Interactive Controls -->
         <div class="flex justify-between items-center text-xs font-bold gap-2">
-            <div class="flex items-center gap-1.5 truncate max-w-[160px] sm:max-w-[210px]">
+            <div class="flex items-center gap-1.5 truncate max-w-[170px] sm:max-w-[210px]">
                 <span id="transfer-direction-badge" class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-lime-500/20 text-lime-600 dark:text-lime-400 border border-lime-500/30 flex-shrink-0">Sending</span>
-                <span id="file-info-label" class="text-slate-800 dark:text-white truncate">Transferring...</span>
+                <span id="file-info-label" class="text-slate-800 dark:text-white truncate text-xs">Transferring...</span>
             </div>
             <!-- Visible Interactive Controls: Pause/Resume & Stop/Cancel -->
             <div class="flex items-center gap-1.5 flex-shrink-0">
@@ -378,12 +351,12 @@
             </div>
         </div>
         
-        <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-300 dark:border-slate-700">
+        <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-300 dark:border-slate-700">
             <div id="progress-bar" class="bg-gradient-to-r from-lime-500 to-emerald-500 h-full w-0 transition-all duration-100 rounded-full"></div>
         </div>
 
-        <div class="glass-panel p-1.5 rounded-xl border">
-            <canvas id="speed-chart" width="360" height="32" class="w-full h-8 block"></canvas>
+        <div class="glass-panel p-1 rounded-lg border">
+            <canvas id="speed-chart" width="360" height="28" class="w-full h-7 block"></canvas>
         </div>
 
         <div class="flex justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono">
@@ -392,40 +365,19 @@
         </div>
     </div>
 
-    <div id="disk-prompt-card" class="fixed bottom-24 left-1/2 -translate-x-1/2 max-w-md w-[92%] bg-lime-950/90 border border-lime-500/40 p-4 rounded-2xl space-y-3 z-40 hidden shadow-2xl backdrop-blur-md text-white">
-        <div class="flex items-start gap-3">
-            <div class="p-2 bg-lime-500/20 rounded-xl text-lime-400">
-                <i data-lucide="hard-drive" class="w-5 h-5"></i>
-            </div>
-            <div>
-                <h3 class="text-xs font-extrabold text-lime-300">Large File (>50 MB) Direct Storage</h3>
-                <p id="disk-prompt-file-info" class="text-xs font-mono text-slate-200 mt-0.5">file.zip (100 MB)</p>
-                <p class="text-[10px] text-slate-300 mt-1">Direct device storage stream required to protect browser memory from exhaustion.</p>
-            </div>
-        </div>
-        <div class="flex gap-2">
-            <button onclick="declineDiskTransfer()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold py-2 rounded-xl text-xs transition border border-slate-700">
-                Decline
-            </button>
-            <button onclick="acceptDiskTransfer()" class="flex-1 bg-lime-500 hover:bg-lime-400 text-slate-950 font-extrabold py-2 rounded-xl text-xs transition shadow">
-                Save to Storage
-            </button>
-        </div>
-    </div>
-
-    <footer class="w-full max-w-lg mx-auto px-4 pb-4 z-30">
-        <div class="glass-panel p-1.5 rounded-2xl border shadow-xl flex items-center justify-between text-xs font-bold gap-1">
-            <button id="dock-btn-radar" onclick="switchDockTab('radar')" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-lime-500 to-green-600 text-white shadow flex items-center justify-center gap-1.5 transition">
-                <i data-lucide="radar" class="w-4 h-4"></i>
+    <footer class="w-full max-w-lg mx-auto px-4 pb-2 z-30 flex-shrink-0">
+        <div class="glass-panel p-1 rounded-2xl border shadow-lg flex items-center justify-between text-xs font-bold gap-1">
+            <button id="dock-btn-radar" onclick="switchDockTab('radar')" class="flex-1 py-1.5 rounded-xl bg-gradient-to-r from-lime-500 to-green-600 text-white shadow flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="radar" class="w-3.5 h-3.5"></i>
                 <span>Radar Mesh</span>
             </button>
-            <button id="dock-btn-history" onclick="switchDockTab('history')" class="flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition">
-                <i data-lucide="folder-down" class="w-4 h-4"></i>
+            <button id="dock-btn-history" onclick="switchDockTab('history')" class="flex-1 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="folder-down" class="w-3.5 h-3.5"></i>
                 <span>Files & History</span>
                 <span id="history-badge-count" class="bg-lime-500 text-white text-[9px] px-1.5 py-0.2 rounded-full hidden">0</span>
             </button>
-            <button id="dock-btn-clip" onclick="switchDockTab('clip')" class="flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition">
-                <i data-lucide="clipboard" class="w-4 h-4"></i>
+            <button id="dock-btn-clip" onclick="switchDockTab('clip')" class="flex-1 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="clipboard" class="w-3.5 h-3.5"></i>
                 <span>Live Clipboard</span>
             </button>
         </div>
@@ -459,7 +411,7 @@
                 </div>
             </div>
 
-            <div id="file-list" class="space-y-2 overflow-y-auto pr-1 flex-1 min-h-[220px]">
+            <div id="file-list" class="space-y-2 overflow-y-auto pr-1 flex-1 min-h-[200px]">
                 <p id="empty-state" class="text-center text-xs text-slate-400 py-8 font-medium">No files sent or received yet</p>
             </div>
         </div>
@@ -502,6 +454,7 @@
         </div>
     </div>
 
+    <!-- Pair Modal -->
     <div id="pair-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
         <div class="glass-panel max-w-sm w-full rounded-3xl p-6 space-y-4 text-center shadow-2xl relative border">
             <button onclick="closePairingModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
@@ -589,7 +542,6 @@
                 </button>
             </div>
 
-            <!-- Symbolic 3-Step Pipeline Flow -->
             <div class="space-y-4 text-slate-700 dark:text-slate-300 overflow-y-auto pr-1 flex-1">
                 <div class="grid grid-cols-3 gap-2 text-center">
                     <div class="glass-panel border p-3 rounded-2xl flex flex-col items-center justify-center space-y-1.5">
@@ -617,7 +569,6 @@
                     </div>
                 </div>
 
-                <!-- Symbolic Feature Grid -->
                 <div class="grid grid-cols-2 gap-2.5 pt-1">
                     <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
                         <i data-lucide="wifi" class="w-5 h-5 text-lime-500 flex-shrink-0"></i>
@@ -633,63 +584,12 @@
                             <p class="text-[9px] text-slate-400">0 Cloud Storage</p>
                         </div>
                     </div>
-                    <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
-                        <i data-lucide="cpu" class="w-5 h-5 text-sky-500 flex-shrink-0"></i>
-                        <div>
-                            <p class="text-[11px] font-bold leading-tight">Direct Disk</p>
-                            <p class="text-[9px] text-slate-400">>50MB 0 RAM</p>
-                        </div>
-                    </div>
-                    <div class="p-2.5 glass-panel border rounded-xl flex items-center gap-2.5">
-                        <i data-lucide="refresh-cw" class="w-5 h-5 text-amber-500 flex-shrink-0"></i>
-                        <div>
-                            <p class="text-[11px] font-bold leading-tight">Auto-Resume</p>
-                            <p class="text-[9px] text-slate-400">Byte checkpoints</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- OS Compatibility Row -->
-                <div class="glass-panel p-2.5 border rounded-2xl flex items-center justify-around text-slate-400 text-[10px] font-bold">
-                    <span class="flex items-center gap-1"><i data-lucide="laptop" class="w-3.5 h-3.5 text-lime-500"></i> Windows / Mac</span>
-                    <span>•</span>
-                    <span class="flex items-center gap-1"><i data-lucide="smartphone" class="w-3.5 h-3.5 text-emerald-500"></i> Android / iOS</span>
-                    <span>•</span>
-                    <span class="flex items-center gap-1"><i data-lucide="terminal" class="w-3.5 h-3.5 text-sky-500"></i> Linux</span>
                 </div>
             </div>
 
             <button onclick="closeHowToUseModal()" class="w-full theme-accent-btn py-2.5 rounded-xl text-xs font-bold transition shadow flex-shrink-0">
                 Close Guide
             </button>
-        </div>
-    </div>
-
-    <!-- Device Save Modal (Crucial for Apple iPad / iOS & Large File Direct Save) -->
-    <div id="device-save-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
-        <div class="glass-panel max-w-sm w-full rounded-3xl p-6 space-y-4 text-center shadow-2xl relative border border-lime-500/40">
-            <div class="w-16 h-16 mx-auto bg-gradient-to-tr from-lime-500 to-emerald-500 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-lime-500/30 animate-pulse">
-                <i data-lucide="check-circle-2" class="w-8 h-8 text-white"></i>
-            </div>
-            <div>
-                <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider border border-emerald-500/30">Transfer 100% Complete</span>
-                <h3 id="device-save-filename" class="text-sm font-extrabold text-slate-900 dark:text-white mt-2 truncate">file</h3>
-                <p id="device-save-filesize" class="text-xs font-mono text-slate-500 dark:text-slate-400 font-bold mt-0.5">0 MB</p>
-            </div>
-
-            <div class="space-y-2 pt-2">
-                <button id="device-save-btn" onclick="executeDeviceStorageSave()" class="w-full theme-accent-btn py-3.5 rounded-2xl text-xs font-black transition active:scale-95 shadow-lg flex items-center justify-center gap-2">
-                    <i data-lucide="download" class="w-4 h-4"></i>
-                    <span id="device-save-btn-text">Save to Device / Files</span>
-                </button>
-                <button id="device-share-btn" onclick="executeNativeShare()" class="w-full glass-panel hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 py-2.5 rounded-2xl text-xs font-extrabold border transition flex items-center justify-center gap-2">
-                    <i data-lucide="share" class="w-4 h-4 text-lime-500"></i>
-                    <span>Share / Save to Photos / Files</span>
-                </button>
-                <button onclick="closeDeviceSaveModal()" class="w-full py-2 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition">
-                    Done (Stored in Files & History)
-                </button>
-            </div>
         </div>
     </div>
 
@@ -710,98 +610,29 @@
     </div>
 
     <!-- Floating Toast Notification -->
-    <div id="status-toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 transform -translate-y-16 opacity-0 transition-all duration-300 pointer-events-none">
-        <div id="status-toast-inner" class="bg-slate-900 border border-slate-700 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5">
+    <div id="status-toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 transform -translate-y-16 opacity-0 transition-all duration-300 pointer-events-none">
+        <div id="status-toast-inner" class="bg-slate-900 border border-slate-700 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2">
             <span id="toast-icon">⚡</span>
             <span id="toast-msg">Notification Message</span>
         </div>
     </div>
 
     <script>
-        const DISK_STREAM_THRESHOLD = 50 * 1024 * 1024; // 50MB Direct Storage threshold
+        // 200 MB Batch / Single File Threshold & 300 MB RAM Cap
+        const DIRECT_DOWNLOAD_THRESHOLD = 200 * 1024 * 1024; 
+        const RAM_MAX_BUFFER_LIMIT = 300 * 1024 * 1024;      
         const PEER_PREFIX = "ls-lan-v6-";
 
-        // Transfer control flags
+        // Global Transfer & Batch State
+        let activeBatchTotalSize = 0;
+        let activeBatchIsDirect = false;
+        let batchDirectMode = false;
+        let senderAckTimeout = null;
+
         let isTransferPaused = false;
         let isTransferCancelled = false;
         let smoothedSpeed = 0;
         let pendingSaveFile = null;
-
-        // Accurate Apple iPad / iPhone / iOS detection (including iPadOS Desktop Safari mode)
-        function isAppleDevice() {
-            return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        }
-
-        // Dynamic Device-Adaptive Transfer Tuning (Mobile vs Desktop)
-        function getDeviceTransferConfig() {
-            const mobile = isMobileDevice();
-            if (mobile) {
-                return {
-                    isMobile: true,
-                    chunkSize: 32768,           // 32KB: Optimal safe packet limit for mobile radios & WebKit MTU
-                    maxBuffer: 1024 * 1024,     // 1MB buffer ceiling: Eliminates mobile bufferbloat & memory exhaustion
-                    lowBuffer: 256 * 1024,      // 256KB drain threshold
-                    blockReadSize: 1024 * 1024  // 1MB prefetch memory slice
-                };
-            } else {
-                return {
-                    isMobile: false,
-                    chunkSize: 65536,           // 64KB: Universal maximum SCTP frame for desktop throughput
-                    maxBuffer: 4 * 1024 * 1024, // 4MB buffer ceiling for high-speed desktop gigabit Wi-Fi
-                    lowBuffer: 1024 * 1024,     // 1MB drain threshold
-                    blockReadSize: 4 * 1024 * 1024 // 4MB prefetch memory slice
-                };
-            }
-        }
-
-        // Helper to resolve the underlying native RTCDataChannel safely
-        function getRawDataChannel(conn) {
-            if (!conn) return null;
-            return conn._dc || conn.dataChannel || null;
-        }
-
-        // Deadlock-proof, high-speed buffer drain controller
-        async function waitForBufferDrain(dc, maxAllowedBuffer, lowThreshold) {
-            if (!dc || dc.bufferedAmount <= maxAllowedBuffer) return;
-
-            return new Promise(resolve => {
-                let finished = false;
-                let pollTimer = null;
-                let timeoutTimer = null;
-
-                const cleanup = () => {
-                    if (finished) return;
-                    finished = true;
-                    if (pollTimer) clearInterval(pollTimer);
-                    if (timeoutTimer) clearTimeout(timeoutTimer);
-                    if (dc) {
-                        try { dc.removeEventListener('bufferedamountlow', onLow); } catch(e) {}
-                    }
-                    resolve();
-                };
-
-                const onLow = () => {
-                    if (!dc || dc.bufferedAmount <= lowThreshold) {
-                        cleanup();
-                    }
-                };
-
-                if (dc) {
-                    try { dc.addEventListener('bufferedamountlow', onLow); } catch(e) {}
-                }
-
-                // Fast 10ms interval check fallback (critical for mobile Chrome & Safari)
-                pollTimer = setInterval(() => {
-                    if (!dc || dc.bufferedAmount <= lowThreshold) {
-                        cleanup();
-                    }
-                }, 10);
-
-                // 4-second safety guard: guarantees transfer never permanently freezes
-                timeoutTimer = setTimeout(cleanup, 4000);
-            });
-        }
 
         let myID = null;
         let myUserName = localStorage.getItem('limeshare_user_name');
@@ -843,21 +674,19 @@
         let receivedChunks = [];
         let receivedSize = 0;
         let activePartialTransfers = {};
-        let writableStream = null;
-        let diskWriteQueue = Promise.resolve();
         let html5QrcodeScanner = null;
         let db = null;
         let wakeLock = null;
         let deferredPrompt = null;
 
-        // Statistics state
+        // Metrics & Stats
         let transferStartTime = 0;
         let transferPeakSpeed = 0;
         let speedHistory = new Array(30).fill(0);
         let lastTime = performance.now();
         let lastBytes = 0;
         let lastUiUpdate = 0;
-        let myPublicIP = null;
+        let myPublicIP = localStorage.getItem('ls_cached_ip') || null;
 
         const MQTT_BROKERS = [
             'wss://broker.emqx.io:8084/mqtt',
@@ -869,68 +698,171 @@
             lucide.createIcons();
             initTheme();
             initPwaSupport();
-            await fetchPublicIP();
-
             await initDB();
             initPeer();
             setupDragAndDrop();
+
+            fetchPublicIP().then(() => {
+                if (typeof sendPresencePing === 'function') sendPresencePing();
+            });
+
+            // Bind change event explicitly to file-input
+            const fileInput = document.getElementById('file-input');
+            if (fileInput) {
+                fileInput.addEventListener('change', handleFileSelect);
+            }
         });
 
-        async function hashString(str) {
-            try {
-                if (crypto && crypto.subtle && crypto.subtle.digest) {
-                    const msgUint8 = new TextEncoder().encode(str + "_limeshare_wifi_salt");
-                    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-                    const hashArray = Array.from(new Uint8Array(hashBuffer));
-                    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 20);
-                }
-            } catch(e) {}
-            let hash = 0;
-            const salted = str + "_limeshare_wifi_salt";
-            for (let i = 0; i < salted.length; i++) {
-                hash = ((hash << 5) - hash) + salted.charCodeAt(i);
-                hash |= 0;
-            }
-            return Math.abs(hash).toString(16);
-        }
-
-        async function fetchPublicIP() {
-            try {
-                const ip = await Promise.race([
-                    fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip),
-                    fetch('https://cloudflare.com/cdn-cgi/trace').then(r => r.text()).then(t => {
-                        const m = t.match(/ip=(.+)/);
-                        return m ? m[1].trim() : null;
-                    })
-                ]);
-                if (ip) {
-                    myPublicIP = ip;
-                    console.log("Verified Local Wi-Fi Router Gateway IP:", myPublicIP);
-                }
-            } catch(e) {
-                console.log("Offline or local hotspot without internet access.");
-            }
+        function isAppleDevice() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         }
 
         function isMobileDevice() {
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
         }
 
-        function triggerFileUpload() {
+        function getDeviceTransferConfig() {
+            const mobile = isMobileDevice();
+            if (mobile) {
+                return {
+                    isMobile: true,
+                    chunkSize: 32768,           
+                    maxBuffer: 1024 * 1024,     
+                    lowBuffer: 256 * 1024,      
+                    blockReadSize: 1024 * 1024  
+                };
+            } else {
+                return {
+                    isMobile: false,
+                    chunkSize: 65536,           
+                    maxBuffer: 4 * 1024 * 1024, 
+                    lowBuffer: 1024 * 1024,     
+                    blockReadSize: 4 * 1024 * 1024 
+                };
+            }
+        }
+
+        function getRawDataChannel(conn) {
+            if (!conn) return null;
+            return conn._dc || conn.dataChannel || null;
+        }
+
+        async function waitForBufferDrain(dc, maxAllowedBuffer, lowThreshold) {
+            if (!dc || dc.bufferedAmount <= maxAllowedBuffer) return;
+
+            return new Promise(resolve => {
+                let finished = false;
+                let pollTimer = null;
+                let timeoutTimer = null;
+
+                const cleanup = () => {
+                    if (finished) return;
+                    finished = true;
+                    if (pollTimer) clearInterval(pollTimer);
+                    if (timeoutTimer) clearTimeout(timeoutTimer);
+                    if (dc) {
+                        try { dc.removeEventListener('bufferedamountlow', onLow); } catch(e) {}
+                    }
+                    resolve();
+                };
+
+                const onLow = () => {
+                    if (!dc || dc.bufferedAmount <= lowThreshold) {
+                        cleanup();
+                    }
+                };
+
+                if (dc) {
+                    try { dc.addEventListener('bufferedamountlow', onLow); } catch(e) {}
+                }
+
+                pollTimer = setInterval(() => {
+                    if (!dc || dc.bufferedAmount <= lowThreshold) {
+                        cleanup();
+                    }
+                }, 10);
+
+                timeoutTimer = setTimeout(cleanup, 4000);
+            });
+        }
+
+        function enforceAutoRamLimit() {
+            let currentRamBytes = 0;
+            fileHistory.forEach(file => {
+                if (file.blob) currentRamBytes += file.size || 0;
+            });
+
+            if (currentRamBytes > RAM_MAX_BUFFER_LIMIT) {
+                for (let i = fileHistory.length - 1; i >= 0; i--) {
+                    const f = fileHistory[i];
+                    if (f.blob && !f.isSent) {
+                        if (f.url) {
+                            try {
+                                const a = document.createElement('a');
+                                a.href = f.url;
+                                a.download = f.name;
+                                document.body.appendChild(a);
+                                a.click();
+                                setTimeout(() => {
+                                    if (document.body.contains(a)) document.body.removeChild(a);
+                                    URL.revokeObjectURL(f.url);
+                                }, 300);
+                            } catch(e) {}
+                        }
+                        f.blob = null;
+                        f.url = null;
+                        f.isDiskSaved = true;
+                        currentRamBytes -= (f.size || 0);
+                        if (currentRamBytes <= RAM_MAX_BUFFER_LIMIT * 0.7) break;
+                    }
+                }
+                renderFileHistory();
+            }
+        }
+
+        function triggerFileUpload(e) {
+            if (e) e.stopPropagation();
             if (!isConnected || !activeDataConn) {
                 openPairingModal();
                 showToast("Pair with a device to send files", "lime");
                 return;
             }
-            document.getElementById('file-input').click();
+            const input = document.getElementById('file-input');
+            if (input) input.click();
+        }
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files || []);
+            if (files.length) {
+                queueFilesForTransfer(files);
+            }
+            resetFileInputs();
         }
 
         function handleFolderClick(e) {
+            if (e) e.stopPropagation();
             if (!isConnected || !activeDataConn) {
                 e.preventDefault();
                 openPairingModal();
                 showToast("Pair with a device to send files", "lime");
+                return;
             }
+            const folderInput = document.getElementById('folder-input');
+            if (folderInput) folderInput.click();
+        }
+
+        function handleFolderSelect(event) {
+            const files = Array.from(event.target.files || []);
+            if (files.length) queueFilesForTransfer(files);
+            resetFileInputs();
+        }
+
+        function resetFileInputs() {
+            const fileInput = document.getElementById('file-input');
+            const folderInput = document.getElementById('folder-input');
+            if (fileInput) fileInput.value = '';
+            if (folderInput) folderInput.value = '';
         }
 
         function updateChunkBadge(sizeInBytes, isMobile = false) {
@@ -984,6 +916,40 @@
             } catch(e) {}
         }
 
+        async function hashString(str) {
+            try {
+                if (crypto && crypto.subtle && crypto.subtle.digest) {
+                    const msgUint8 = new TextEncoder().encode(str + "_limeshare_wifi_salt");
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 20);
+                }
+            } catch(e) {}
+            let hash = 0;
+            const salted = str + "_limeshare_wifi_salt";
+            for (let i = 0; i < salted.length; i++) {
+                hash = ((hash << 5) - hash) + salted.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash).toString(16);
+        }
+
+        async function fetchPublicIP() {
+            try {
+                const ip = await Promise.race([
+                    fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip),
+                    fetch('https://cloudflare.com/cdn-cgi/trace').then(r => r.text()).then(t => {
+                        const m = t.match(/ip=(.+)/);
+                        return m ? m[1].trim() : null;
+                    })
+                ]);
+                if (ip) {
+                    myPublicIP = ip;
+                    localStorage.setItem('ls_cached_ip', ip);
+                }
+            } catch(e) {}
+        }
+
         function initPeer() {
             myID = localStorage.getItem('limeshare_my_id');
             if (!myID || myID.length !== 6) {
@@ -1000,8 +966,8 @@
                 qrContainer.innerHTML = "";
                 new QRCode(qrContainer, {
                     text: myID,
-                    width: 140,
-                    height: 140,
+                    width: 130,
+                    height: 130,
                     colorDark: "#0f172a",
                     colorLight: "#ffffff"
                 });
@@ -1049,10 +1015,6 @@
                         updateRadarStatus("Peer Unavailable");
                     } else if (err.type === 'unavailable-id') {
                         regenerateDeviceCode();
-                    } else {
-                        if (peer && !peer.destroyed && peer.disconnected) {
-                            try { peer.reconnect(); } catch(e) {}
-                        }
                     }
                     
                     if (connectingPeerID) {
@@ -1066,11 +1028,6 @@
         }
 
         async function setupPresenceBeacon() {
-            if (!myPublicIP) {
-                await fetchPublicIP();
-            }
-
-            // Always support local tab and cross-window pairing on the same machine
             if (!broadcastChannel && 'BroadcastChannel' in window) {
                 broadcastChannel = new BroadcastChannel('limeshare_local_lan_ch');
             }
@@ -1097,14 +1054,8 @@
                 };
             }
 
-            // STRICT LOCAL WI-FI ISOLATION:
-            // Do not connect to public MQTT brokers without a verified public IP
-            if (!myPublicIP) {
-                console.log("No public gateway IP available; running in strictly local offline mode.");
-                return;
-            }
+            if (!myPublicIP) return;
 
-            // Generate an isolated discovery channel matching ONLY devices on the exact same router
             const wifiSubnetHash = await hashString(myPublicIP);
             const topicRoom = `ls_subnet_${wifiSubnetHash}`;
 
@@ -1128,7 +1079,6 @@
                             const data = JSON.parse(message.toString());
                             if (!data || !data.senderID || data.senderID === myID) return;
 
-                            // DOUBLE-LOCK: Discard any beacon with a mismatched public gateway IP
                             if (data.publicIP && myPublicIP && data.publicIP !== myPublicIP) {
                                 return;
                             }
@@ -1235,49 +1185,49 @@
         function renderPeerOnRadarNode(layer, peerID, isConn, isConnPending, index, total, deviceType = 'laptop') {
             const baseAngle = (index * (360 / Math.max(total, 1))) - 45;
             const rad = (baseAngle * Math.PI) / 180;
-            const radiusPercent = total > 1 ? (index % 2 === 0 ? 36 : 44) : 38;
+            const radiusPercent = total > 1 ? (index % 2 === 0 ? 35 : 42) : 38;
             
             const leftPercent = 50 + radiusPercent * Math.cos(rad);
             const topPercent = 50 + radiusPercent * Math.sin(rad);
 
             const peerNode = document.createElement('div');
-            peerNode.className = "absolute flex flex-col items-center cursor-pointer pointer-events-auto transition-all duration-500 hover:scale-110 z-30 -translate-x-1/2 -translate-y-1/2";
+            peerNode.className = "absolute flex flex-col items-center cursor-pointer pointer-events-auto transition-all duration-400 hover:scale-110 z-30 -translate-x-1/2 -translate-y-1/2";
             peerNode.style.left = `${leftPercent}%`;
             peerNode.style.top = `${topPercent}%`;
 
             const iconName = deviceType === 'mobile' ? 'smartphone' : 'laptop';
             const displayName = discoveredPeers[peerID]?.userName || `#${peerID}`;
 
-            let borderStyle = 'border-lime-500/60 bg-white/80 dark:bg-slate-900/80 shadow-lime-500/20';
+            let borderStyle = 'border-lime-500/60 bg-white/90 dark:bg-slate-900/90 shadow-lime-500/20';
             let iconColor = 'text-lime-500';
             let statusText = 'Tap to Pair';
             let statusColor = 'text-lime-600 dark:text-lime-400';
-            let pulseBadge = '<span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-lime-400 border-2 border-white dark:border-slate-900 rounded-full animate-ping"></span>';
+            let pulseBadge = '<span class="absolute -top-1 -right-1 w-3 h-3 bg-lime-400 border-2 border-white dark:border-slate-900 rounded-full animate-ping"></span>';
 
             if (isConn) {
                 borderStyle = 'border-emerald-500 bg-emerald-500/20 shadow-emerald-500/30 ring-2 ring-emerald-500/50';
                 iconColor = 'text-emerald-500';
                 statusText = 'Connected';
                 statusColor = 'text-emerald-500';
-                pulseBadge = '<span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full shadow"></span>';
+                pulseBadge = '<span class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full shadow"></span>';
             } else if (isConnPending) {
                 borderStyle = 'border-amber-500 bg-amber-500/20 shadow-amber-500/30 animate-pulse';
                 iconColor = 'text-amber-500';
                 statusText = 'Connecting...';
                 statusColor = 'text-amber-500';
-                pulseBadge = '<span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 border-2 border-white dark:border-slate-900 rounded-full animate-ping"></span>';
+                pulseBadge = '<span class="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 border-2 border-white dark:border-slate-900 rounded-full animate-ping"></span>';
             }
 
             peerNode.innerHTML = `
                 <div class="relative">
-                    <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full glass-panel border-2 ${borderStyle} flex items-center justify-center shadow-xl backdrop-blur-md">
-                        <i data-lucide="${iconName}" class="w-5 h-5 sm:w-6 sm:h-6 ${iconColor}"></i>
+                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full glass-panel border-2 ${borderStyle} flex items-center justify-center shadow-lg backdrop-blur-md">
+                        <i data-lucide="${iconName}" class="w-5 h-5 ${iconColor}"></i>
                     </div>
                     ${pulseBadge}
                 </div>
-                <div class="mt-1 glass-panel px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border border-slate-200/60 dark:border-slate-800/60 text-center shadow-lg backdrop-blur-md bg-white/90 dark:bg-slate-900/90 max-w-[100px]">
-                    <p class="text-[9px] sm:text-[10px] font-extrabold text-slate-800 dark:text-white font-mono leading-none truncate" title="${escapeHtml(displayName)} (${peerID})">${escapeHtml(displayName)}</p>
-                    <p class="text-[7px] sm:text-[8px] font-bold ${statusColor} uppercase tracking-wider mt-0.5">${statusText}</p>
+                <div class="mt-1 glass-panel px-2 py-0.5 rounded-full border border-slate-200/60 dark:border-slate-800/60 text-center shadow backdrop-blur-md bg-white/90 dark:bg-slate-900/90 max-w-[95px]">
+                    <p class="text-[9px] font-extrabold text-slate-800 dark:text-white font-mono leading-none truncate" title="${escapeHtml(displayName)} (${peerID})">${escapeHtml(displayName)}</p>
+                    <p class="text-[7px] font-bold ${statusColor} uppercase tracking-wider mt-0.5">${statusText}</p>
                 </div>
             `;
 
@@ -1293,75 +1243,6 @@
 
             layer.appendChild(peerNode);
             lucide.createIcons();
-        }
-
-        async function inspectActivePeerConnection(pc) {
-            if (!pc || pc.connectionState === 'closed') return null;
-            try {
-                const stats = await pc.getStats();
-                let activePair = null;
-
-                stats.forEach(report => {
-                    if (report.type === 'transport' && report.selectedCandidatePairId) {
-                        activePair = stats.get(report.selectedCandidatePairId);
-                    } else if (report.type === 'candidate-pair' && (report.selected || report.nominated) && report.state === 'succeeded') {
-                        activePair = report;
-                    }
-                });
-
-                if (!activePair) {
-                    stats.forEach(report => {
-                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-                            activePair = report;
-                        }
-                    });
-                }
-
-                if (activePair) {
-                    const remoteCandidate = stats.get(activePair.remoteCandidateId);
-                    const rtt = activePair.currentRoundTripTime 
-                        ? `${Math.round(activePair.currentRoundTripTime * 1000)}ms` 
-                        : null;
-
-                    const typeLabels = {
-                        'host': 'Direct Local Wi-Fi (LAN)',
-                        'srflx': 'STUN (NAT)',
-                        'prflx': 'Peer Reflexive',
-                        'relay': 'TURN Relay'
-                    };
-
-                    const candType = remoteCandidate?.candidateType || 'host';
-                    const labelType = typeLabels[candType] || candType.toUpperCase();
-                    const ip = remoteCandidate?.ip || remoteCandidate?.address || 'Local Device';
-                    const port = remoteCandidate?.port ? `:${remoteCandidate.port}` : '';
-
-                    return {
-                        summary: `${labelType} • ${ip}${port}${rtt ? ` (${rtt})` : ''}`,
-                        ip,
-                        candType,
-                        rtt
-                    };
-                }
-            } catch (e) {}
-            return null;
-        }
-
-        function startConnectionStatsMonitor(pc) {
-            if (statsPollingInterval) clearInterval(statsPollingInterval);
-            const badge = document.getElementById('conn-details-badge');
-            const text = document.getElementById('conn-details-text');
-            if (badge) badge.classList.remove('hidden');
-
-            const poll = async () => {
-                if (!isConnected || !pc) return;
-                const info = await inspectActivePeerConnection(pc);
-                if (info && text) {
-                    text.innerText = info.summary;
-                }
-            };
-
-            setTimeout(poll, 700);
-            statsPollingInterval = setInterval(poll, 3000);
         }
 
         function connectToPeer(overrideID) {
@@ -1401,9 +1282,7 @@
             }
 
             try {
-                const conn = peer.connect(fullPeerID, {
-                    reliable: true
-                });
+                const conn = peer.connect(fullPeerID, { reliable: true });
                 setupDataConnection(conn, true);
             } catch (err) {
                 connectingPeerID = null;
@@ -1426,22 +1305,13 @@
             activeDataConn = conn;
 
             conn.on('open', () => {
-                const activePc = conn.peerConnection;
-                if (activePc) {
-                    startConnectionStatsMonitor(activePc);
-                }
-
-                const sendHandshake = () => {
+                if (isInitiator) {
                     sendControlMessage(conn, {
                         type: 'pair_handshake_req',
                         senderID: myID,
                         userName: myUserName,
                         publicIP: myPublicIP
                     });
-                };
-
-                if (isInitiator) {
-                    sendHandshake();
                 }
             });
 
@@ -1450,20 +1320,101 @@
             });
 
             conn.on('close', () => {
-                preservePartialState();
                 disconnectPeer(false);
             });
 
             conn.on('error', () => {
-                preservePartialState();
                 disconnectPeer(false);
             });
+        }
+
+        function finalizeConnection(peerID, peerName) {
+            connectingPeerID = null;
+            isConnected = true;
+            connectedPeerID = peerID;
+
+            // Auto-minimize/close pairing modal on connection
+            closePairingModal();
+
+            registerDiscoveredPeer(peerID, 'laptop', peerName);
+            playChime('connect');
+            updateRadarStatus("Direct LAN Linked");
+
+            const dot = document.getElementById('conn-status-dot');
+            if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+
+            const myAvatar = document.getElementById('my-avatar-ring');
+            if (myAvatar) myAvatar.className = "w-9 h-9 sm:w-10 sm:h-10 rounded-full glass-panel border-2 border-emerald-500 bg-emerald-500/10 flex items-center justify-center shadow-lg text-emerald-500";
+
+            renderRadarPeers();
+            showToast(`Connected to #${peerID}!`, "emerald");
+
+            if (dataChannelHeartbeat) clearInterval(dataChannelHeartbeat);
+            dataChannelHeartbeat = setInterval(() => {
+                if (isConnected && activeDataConn && activeDataConn.open) {
+                    sendControlMessage(activeDataConn, { type: 'direct_lan_ping' });
+                }
+            }, 3000);
+        }
+
+        function disconnectPeer(notifyRemote = true) {
+            if (notifyRemote && activeDataConn && activeDataConn.open) {
+                sendControlMessage(activeDataConn, { type: 'disconnect' });
+            }
+
+            if (activeDataConn) {
+                try { activeDataConn.close(); } catch(e) {}
+                activeDataConn = null;
+            }
+
+            if (dataChannelHeartbeat) {
+                clearInterval(dataChannelHeartbeat);
+                dataChannelHeartbeat = null;
+            }
+
+            isConnected = false;
+            connectingPeerID = null;
+            connectedPeerID = null;
+            isTransferring = false;
+
+            const dot = document.getElementById('conn-status-dot');
+            if (dot) dot.className = "w-2 h-2 rounded-full bg-slate-400";
+
+            const myAvatar = document.getElementById('my-avatar-ring');
+            if (myAvatar) myAvatar.className = "w-9 h-9 sm:w-10 sm:h-10 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow text-slate-800 dark:text-white";
+
+            releaseWakeLock();
+            hideProgressUI(true);
+            updateRadarStatus("Wi-Fi Direct Ready");
+            renderRadarPeers();
+            showToast("Session disconnected", "rose");
+        }
+
+        function acceptPairingRequest() {
+            document.getElementById('pair-request-modal').classList.add('hidden');
+            if (pendingPeerRequest && pendingPeerRequest.conn) {
+                sendControlMessage(pendingPeerRequest.conn, { type: 'pair_handshake_ack', senderID: myID, userName: myUserName });
+                finalizeConnection(pendingPeerRequest.senderID, pendingPeerRequest.userName);
+            }
+            pendingPeerRequest = null;
+        }
+
+        function rejectPairingRequest() {
+            document.getElementById('pair-request-modal').classList.add('hidden');
+            if (pendingPeerRequest && pendingPeerRequest.conn) {
+                sendControlMessage(pendingPeerRequest.conn, { type: 'pair_handshake_reject', senderID: myID });
+                try { pendingPeerRequest.conn.close(); } catch(e) {}
+            }
+            pendingPeerRequest = null;
+            connectingPeerID = null;
+            updateRadarStatus("Online • Ready");
+            renderRadarPeers();
         }
 
         async function handleIncomingData(data, conn) {
             if (!data) return;
 
-            // Direct Raw Binary Chunk Handler
+            // Raw Binary Chunk Handler
             if (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || data instanceof Blob) {
                 let buffer;
                 if (data instanceof ArrayBuffer) {
@@ -1494,7 +1445,7 @@
                 const securityShieldActive = localStorage.getItem('limeshare_require_approval') !== 'false';
                 if (securityShieldActive) {
                     pendingPeerRequest = { senderID: msg.senderID, userName: msg.userName, publicIP: msg.publicIP, conn };
-                    document.getElementById('pair-request-peer-id').innerText = `${msg.userName || 'Device'} (#${msg.senderID})${msg.publicIP ? ' • ' + msg.publicIP : ''}`;
+                    document.getElementById('pair-request-peer-id').innerText = `${msg.userName || 'Device'} (#${msg.senderID})`;
                     document.getElementById('pair-request-modal').classList.remove('hidden');
                 } else {
                     sendControlMessage(conn, { type: 'pair_handshake_ack', senderID: myID, userName: myUserName, publicIP: myPublicIP });
@@ -1504,6 +1455,11 @@
             else if (msg.type === 'pair_handshake_ack') {
                 finalizeConnection(msg.senderID, msg.userName);
             }
+            else if (msg.type === 'batch_meta') {
+                if (msg.isDirect) {
+                    batchDirectMode = true;
+                }
+            }
             else if (msg.type === 'pair_handshake_reject') {
                 showToast("Pairing was declined by remote peer.", "rose");
                 connectingPeerID = null;
@@ -1512,14 +1468,6 @@
             }
             else if (msg.type === 'direct_lan_ping') {
                 sendControlMessage(conn, { type: 'direct_lan_pong' });
-            }
-            else if (msg.type === 'direct_lan_pong') {
-                // Keep-alive received
-            }
-            else if (msg.type === 'disconnect') {
-                showToast("Remote peer ended the session", "rose");
-                preservePartialState();
-                disconnectPeer(false);
             }
             else if (msg.type === 'transfer_pause') {
                 isTransferPaused = true;
@@ -1534,10 +1482,6 @@
             else if (msg.type === 'transfer_cancel') {
                 isTransferCancelled = true;
                 showToast("Transfer was stopped by remote peer", "rose");
-                abortTransfer();
-            }
-            else if (msg.type === 'reject_offer') {
-                showToast("File transfer was declined by receiver", "rose");
                 abortTransfer();
             }
             else if (msg.type === 'text_snippet') {
@@ -1561,15 +1505,8 @@
                 if (currentTransferFile || lastAttemptedFile) {
                     const activeFile = currentTransferFile || lastAttemptedFile;
                     currentTransferFile = activeFile;
-                    const resumeOffset = msg.resumeOffset || 0;
-                    if (resumeOffset > 0) {
-                        showToast(`Resuming ${activeFile.name} from ${formatBytes(resumeOffset)}`, "lime");
-                    }
-                    startStreamingChunks(activeFile, resumeOffset);
+                    startStreamingChunks(activeFile, msg.resumeOffset || 0);
                 }
-            }
-            else if (msg.type === 'chunk' && msg.chunk) {
-                handleIncomingChunk(msg.chunk);
             }
             else if (msg.type === 'end') {
                 handleTransferEnd();
@@ -1577,116 +1514,14 @@
             else if (msg.type === 'file_saved') {
                 const fileLabel = document.getElementById('file-info-label');
                 if (fileLabel) fileLabel.innerText = `Completed & Saved!`;
-                const etaLabel = document.getElementById('eta-label');
-                if (etaLabel) etaLabel.innerText = "Completed";
                 const dirBadge = document.getElementById('transfer-direction-badge');
                 if (dirBadge) {
                     dirBadge.innerText = "Finished";
                     dirBadge.className = "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0";
                 }
                 showToast(`File saved on receiver device!`, "emerald");
-                hideProgressUI(false);
-
-                // Advance to next file in queue if multiple files were selected
-                if (pendingFileQueue.length > 0 && !isTransferring) {
-                    setTimeout(processNextFileInQueue, 250);
-                }
+                handleSenderFileCompletion();
             }
-        }
-
-        function finalizeConnection(peerID, peerName) {
-            connectingPeerID = null;
-            isConnected = true;
-            connectedPeerID = peerID;
-
-            registerDiscoveredPeer(peerID, 'laptop', peerName);
-            playChime('connect');
-            updateRadarStatus("Direct LAN Linked");
-
-            const dot = document.getElementById('conn-status-dot');
-            if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
-
-            const myAvatar = document.getElementById('my-avatar-ring');
-            if (myAvatar) myAvatar.className = "w-12 h-12 rounded-full glass-panel border-2 border-emerald-500 bg-emerald-500/10 flex items-center justify-center shadow-lg text-emerald-500";
-
-            renderRadarPeers();
-            showToast(`Connected to #${peerID}!`, "emerald");
-
-            startDirectLanHeartbeat();
-
-            // NOTE: Automatic queue blasting is strictly disabled so reconnecting or pairing
-            // with another device never sends leftover files without user consent.
-        }
-
-        function startDirectLanHeartbeat() {
-            if (dataChannelHeartbeat) clearInterval(dataChannelHeartbeat);
-            dataChannelHeartbeat = setInterval(() => {
-                if (isConnected && activeDataConn && activeDataConn.open) {
-                    sendControlMessage(activeDataConn, { type: 'direct_lan_ping' });
-                }
-            }, 3000);
-        }
-
-        function disconnectPeer(notifyRemote = true) {
-            if (notifyRemote && activeDataConn && activeDataConn.open) {
-                sendControlMessage(activeDataConn, { type: 'disconnect' });
-            }
-
-            if (activeDataConn) {
-                try { activeDataConn.close(); } catch(e) {}
-                activeDataConn = null;
-            }
-
-            if (dataChannelHeartbeat) {
-                clearInterval(dataChannelHeartbeat);
-                dataChannelHeartbeat = null;
-            }
-
-            if (statsPollingInterval) {
-                clearInterval(statsPollingInterval);
-                statsPollingInterval = null;
-            }
-
-            const connDetailsBadge = document.getElementById('conn-details-badge');
-            if (connDetailsBadge) connDetailsBadge.classList.add('hidden');
-
-            isConnected = false;
-            connectingPeerID = null;
-            connectedPeerID = null;
-            isTransferring = false;
-
-            const dot = document.getElementById('conn-status-dot');
-            if (dot) dot.className = "w-2 h-2 rounded-full bg-slate-400";
-
-            const myAvatar = document.getElementById('my-avatar-ring');
-            if (myAvatar) myAvatar.className = "w-12 h-12 rounded-full glass-panel border-2 border-lime-500/50 flex items-center justify-center shadow-lg text-slate-800 dark:text-white";
-
-            releaseWakeLock();
-            hideProgressUI();
-            updateRadarStatus("Wi-Fi Direct Ready");
-            renderRadarPeers();
-            showToast("Session disconnected", "rose");
-        }
-
-        function acceptPairingRequest() {
-            document.getElementById('pair-request-modal').classList.add('hidden');
-            if (pendingPeerRequest && pendingPeerRequest.conn) {
-                sendControlMessage(pendingPeerRequest.conn, { type: 'pair_handshake_ack', senderID: myID, userName: myUserName });
-                finalizeConnection(pendingPeerRequest.senderID, pendingPeerRequest.userName);
-            }
-            pendingPeerRequest = null;
-        }
-
-        function rejectPairingRequest() {
-            document.getElementById('pair-request-modal').classList.add('hidden');
-            if (pendingPeerRequest && pendingPeerRequest.conn) {
-                sendControlMessage(pendingPeerRequest.conn, { type: 'pair_handshake_reject', senderID: myID });
-                try { pendingPeerRequest.conn.close(); } catch(e) {}
-            }
-            pendingPeerRequest = null;
-            connectingPeerID = null;
-            updateRadarStatus("Online • Ready");
-            renderRadarPeers();
         }
 
         async function handleFileOffer(data) {
@@ -1697,96 +1532,38 @@
             updatePauseUI(false);
             await requestWakeLock();
 
-            const partial = activePartialTransfers[fileId];
-            if (partial && partial.receivedSize > 0 && partial.receivedSize < data.size) {
-                receivedChunks = [...partial.chunks];
-                receivedSize = partial.receivedSize;
-                showToast(`Resuming from ${formatBytes(receivedSize)}...`, "lime");
-                
-                if (activeDataConn && activeDataConn.open) {
-                    sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: receivedSize });
-                }
-                showProgressUI(`Resuming: ${data.name}`, false, data.size);
-                updateProgressUI(receivedSize, data.size);
-            } else {
-                if (partial) {
-                    delete activePartialTransfers[fileId];
-                    removePartialFromDB(fileId);
-                }
-                receivedChunks = [];
-                receivedSize = 0;
-                diskWriteQueue = Promise.resolve();
-
-                // Files > 50 MB: ALWAYS show the "Save to Storage" or "Decline" prompt on ALL devices (including Apple iPad / iOS)
-                if (data.size > DISK_STREAM_THRESHOLD) {
-                    const diskPrompt = document.getElementById('disk-prompt-card');
-                    const diskFileInfo = document.getElementById('disk-prompt-file-info');
-                    if (diskFileInfo) diskFileInfo.innerText = `${data.name} (${formatBytes(data.size)})`;
-                    if (diskPrompt) {
-                        diskPrompt.classList.remove('hidden');
-                        lucide.createIcons();
-                    }
-                    showToast(`File exceeds 50 MB: tap Save to Storage to receive`, "lime");
-                    // Sender pauses until user explicitly taps 'Save to Storage' or 'Decline'
-                } else {
-                    // Under 50MB: auto-accept instantly
-                    if (activeDataConn && activeDataConn.open) {
-                        sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
-                    }
-                    showProgressUI(data.name, false, data.size);
-                    updateProgressUI(0, data.size);
-                }
-            }
-        }
-
-        async function acceptDiskTransfer() {
-            const diskPrompt = document.getElementById('disk-prompt-card');
-            if (diskPrompt) diskPrompt.classList.add('hidden');
-
-            if (!incomingMeta) return;
-
-            // Desktop Chromium / Edge with File System Access API
-            if ('showSaveFilePicker' in window) {
-                try {
-                    const handle = await window.showSaveFilePicker({ suggestedName: incomingMeta.name });
-                    writableStream = await handle.createWritable();
-                    diskWriteQueue = Promise.resolve();
-                } catch (err) {
-                    // User dismissed the file picker dialog
-                    declineDiskTransfer();
-                    return;
-                }
-            } else {
-                // Apple iPad / iOS Safari: NEVER use internal OPFS sandbox (which hides files from the iPad user).
-                // Instead, buffer incoming chunks and prompt native system Save to Files via user gesture upon completion.
-                writableStream = null;
-            }
-
-            showToast(`Saving to device storage (${formatBytes(incomingMeta.size)})`, "emerald");
-            showProgressUI(incomingMeta.name, false, incomingMeta.size);
-            updateProgressUI(0, incomingMeta.size);
-
-            // Signal sender to start streaming chunks
-            if (activeDataConn && activeDataConn.open) {
-                sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
-            }
-        }
-
-        function declineDiskTransfer() {
-            const diskPrompt = document.getElementById('disk-prompt-card');
-            if (diskPrompt) diskPrompt.classList.add('hidden');
-
-            writableStream = null;
             receivedChunks = [];
             receivedSize = 0;
 
-            if (incomingMeta && activeDataConn && activeDataConn.open) {
-                sendControlMessage(activeDataConn, { type: 'reject_offer', reason: 'declined_storage' });
+            const isDirect = data.isDirect || batchDirectMode || (data.size >= DIRECT_DOWNLOAD_THRESHOLD);
+
+            // Zero-prompt auto-accept: Streams directly to disk/downloads without asking
+            if (activeDataConn && activeDataConn.open) {
+                sendControlMessage(activeDataConn, { type: 'accept', resumeOffset: 0 });
             }
-            incomingMeta = null;
-            releaseWakeLock();
-            showToast("Transfer declined.", "rose");
-            hideProgressUI(true);
+            showProgressUI(data.name, false, data.size);
+            updateProgressUI(0, data.size);
+
+            if (isDirect) {
+                showToast(`Receiving ${data.name} directly to Downloads...`, "emerald");
+            }
+        }
+
+        function handleSenderFileCompletion() {
+            if (senderAckTimeout) {
+                clearTimeout(senderAckTimeout);
+                senderAckTimeout = null;
+            }
+            isTransferring = false;
+            currentTransferFile = null;
+            hideProgressUI(false);
+
+            if (pendingFileQueue.length > 0) {
+                setTimeout(processNextFileInQueue, 300);
+            } else {
+                activeBatchIsDirect = false;
+                activeBatchTotalSize = 0;
+            }
         }
 
         function toggleTransferPause() {
@@ -1809,21 +1586,13 @@
             const etaLabel = document.getElementById('eta-label');
 
             if (label) label.innerText = isPaused ? "Resume" : "Pause";
-            if (icon) {
-                icon.setAttribute('data-lucide', isPaused ? 'play' : 'pause');
-            }
+            if (icon) icon.setAttribute('data-lucide', isPaused ? 'play' : 'pause');
             if (btn) {
                 btn.className = isPaused 
                     ? "px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 flex items-center gap-1 text-[10px] font-extrabold transition active:scale-95 shadow"
                     : "px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center gap-1 text-[10px] font-extrabold transition active:scale-95";
             }
-            if (etaLabel) {
-                if (isPaused) {
-                    etaLabel.innerText = "Paused";
-                } else if (etaLabel.innerText === "Paused") {
-                    etaLabel.innerText = "Resuming...";
-                }
-            }
+            if (etaLabel && isPaused) etaLabel.innerText = "Paused";
             lucide.createIcons();
         }
 
@@ -1842,16 +1611,7 @@
         async function handleIncomingChunk(chunkBuffer) {
             if (!incomingMeta) return;
             
-            if (writableStream) {
-                // Queue sequential chunk writes to prevent stream collision
-                diskWriteQueue = diskWriteQueue.then(async () => {
-                    if (writableStream) {
-                        await writableStream.write(chunkBuffer);
-                    }
-                }).catch(() => {});
-            } else {
-                receivedChunks.push(chunkBuffer);
-            }
+            receivedChunks.push(chunkBuffer);
             receivedSize += (chunkBuffer.byteLength || chunkBuffer.size || 0);
             
             const now = performance.now();
@@ -1884,85 +1644,64 @@
                     dirBadge.className = "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0";
                 }
 
-                if (meta.fileId) {
-                    delete activePartialTransfers[meta.fileId];
-                    removePartialFromDB(meta.fileId);
-                }
-
-                // Always acknowledge sender immediately so sender's progress card marks as completed
+                // Send completion acknowledgment back to sender immediately
                 if (activeDataConn && activeDataConn.open) {
                     sendControlMessage(activeDataConn, { type: 'file_saved', name: meta.name });
                 }
 
-                if (writableStream) {
-                    try {
-                        await diskWriteQueue;
-                        await writableStream.close();
-                    } catch(e) {}
-                    writableStream = null;
+                const isDirect = meta.isDirect || batchDirectMode || (meta.size >= DIRECT_DOWNLOAD_THRESHOLD);
 
-                    const fileObj = { 
-                        name: meta.name, 
-                        size: meta.size, 
-                        isDiskSaved: true, 
-                        isSent: false, 
+                if (isDirect) {
+                    // DIRECT DOWNLOAD MODE: Trigger direct browser download and immediately revoke from RAM
+                    const detectedMime = meta.mime || detectMimeByName(meta.name);
+                    const blob = new Blob(chunksToSave, { type: detectedMime || 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+
+                    try {
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = meta.name;
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(() => {
+                            if (document.body.contains(a)) document.body.removeChild(a);
+                            // Revoke Object URL to guarantee zero RAM retention
+                            URL.revokeObjectURL(url);
+                        }, 200);
+                    } catch(e) {}
+
+                    const fileObj = {
+                        name: meta.name,
+                        size: meta.size,
+                        mime: detectedMime,
+                        blob: null, 
+                        url: null,  
+                        isSent: false,
+                        isDiskSaved: true,
                         transferSpeed: avgSpeed,
-                        timestamp: Date.now() 
+                        timestamp: Date.now()
                     };
                     saveFileToDB(fileObj);
                     addFileToHistory(fileObj);
-                    showToast(`Saved ${meta.name} (${formatBytes(meta.size)}) directly to storage!`, "emerald");
+                    showToast(`Saved ${meta.name} directly to Downloads!`, "emerald");
                 } else {
+                    // < 200 MB: Save to RAM and Files & History
                     saveReceivedFile(chunksToSave, meta.name, meta.mime, avgSpeed);
+                    enforceAutoRamLimit();
                 }
 
                 const fileLabel = document.getElementById('file-info-label');
-                if (fileLabel) {
-                    fileLabel.innerText = `Completed (${avgSpeed})`;
-                }
+                if (fileLabel) fileLabel.innerText = `Completed (${avgSpeed})`;
 
                 incomingMeta = null;
                 receivedChunks = [];
                 receivedSize = 0;
 
-                // Dismiss progress HUD cleanly
                 setTimeout(() => hideProgressUI(true), 1200);
                 resetFileInputs();
             } catch (err) {
-                console.error("Critical error in handleTransferEnd:", err);
                 hideProgressUI(true);
             }
-        }
-
-        function preservePartialState() {
-            if (incomingMeta && incomingMeta.fileId && receivedSize > 0 && receivedSize < incomingMeta.size) {
-                const fileId = incomingMeta.fileId;
-                activePartialTransfers[fileId] = {
-                    meta: incomingMeta,
-                    chunks: [...receivedChunks],
-                    receivedSize: receivedSize
-                };
-                savePartialToDB(fileId, incomingMeta, [...receivedChunks], receivedSize);
-                showToast(`Transfer saved at ${formatBytes(receivedSize)}. Re-select to resume!`, "amber");
-            }
-
-            // Strictly clear the pending queue on interruption so leftover files
-            // are NEVER blasted automatically to any newly connected peer.
-            pendingFileQueue = [];
-            currentTransferFile = null;
-        }
-
-        function handleFolderSelect(event) {
-            const files = Array.from(event.target.files);
-            if (files.length) queueFilesForTransfer(files);
-            resetFileInputs();
-        }
-
-        function resetFileInputs() {
-            const fileInput = document.getElementById('file-input');
-            const folderInput = document.getElementById('folder-input');
-            if (fileInput) fileInput.value = '';
-            if (folderInput) folderInput.value = '';
         }
 
         async function queueFilesForTransfer(files) {
@@ -1975,30 +1714,24 @@
 
             if (!files || files.length === 0) return;
 
-            // Calculate cumulative batch payload
-            const batchBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
-            if (pendingFileQueue.length === 0 && !isTransferring) {
-                activeBatchTotalSize = batchBytes;
-            } else {
-                activeBatchTotalSize += batchBytes;
+            // SENSE TOTAL BATCH SIZE: Detect if multiple files or single file exceeds 200 MB
+            const batchSize = files.reduce((acc, f) => acc + (f.size || 0), 0);
+            activeBatchTotalSize += batchSize;
+            activeBatchIsDirect = (activeBatchTotalSize >= DIRECT_DOWNLOAD_THRESHOLD);
+
+            // Announce batch descriptor to receiver so it enters direct download mode with zero prompts
+            if (activeDataConn && activeDataConn.open) {
+                sendControlMessage(activeDataConn, {
+                    type: 'batch_meta',
+                    totalFiles: files.length,
+                    totalSize: batchSize,
+                    isDirect: activeBatchIsDirect
+                });
             }
-
-            activeBatchIsDirect = (activeBatchTotalSize > DIRECT_DOWNLOAD_THRESHOLD);
-
-            // Tag each file with batch context
-            files.forEach(f => {
-                f.batchTotalSize = activeBatchTotalSize;
-                f.isDirectDownload = activeBatchIsDirect || (f.size > DIRECT_DOWNLOAD_THRESHOLD);
-            });
 
             pendingFileQueue.push(...files);
             if (files.length > 1) {
-                showToast(
-                    activeBatchIsDirect 
-                        ? `Queued ${files.length} files (${formatBytes(batchBytes)}) • Auto-Direct to Downloads` 
-                        : `Queued ${files.length} file(s) for sequential transfer`, 
-                    "lime"
-                );
+                showToast(`Queued ${files.length} file(s) (${formatBytes(batchSize)}) in sequence`, "lime");
             }
 
             if (!isTransferring) {
@@ -2007,13 +1740,11 @@
         }
 
         function processNextFileInQueue() {
-            if (isTransferring) return; // Prevent double-stepping
-
             if (pendingFileQueue.length === 0) {
                 isTransferring = false;
                 currentTransferFile = null;
-                activeBatchTotalSize = 0;
                 activeBatchIsDirect = false;
+                activeBatchTotalSize = 0;
                 return;
             }
 
@@ -2032,26 +1763,19 @@
             lastAttemptedFile = currentTransferFile;
             
             showProgressUI(currentTransferFile.name, true, currentTransferFile.size);
-
-            const isDirect = (currentTransferFile.size > DIRECT_DOWNLOAD_THRESHOLD) || 
-                             ((currentTransferFile.batchTotalSize || 0) > DIRECT_DOWNLOAD_THRESHOLD) || 
-                             (currentTransferFile.isDirectDownload === true) ||
-                             activeBatchIsDirect;
-
             const payloadMeta = { 
                 type: 'offer', 
                 name: currentTransferFile.name, 
                 size: currentTransferFile.size, 
                 mime: currentTransferFile.type || detectMimeByName(currentTransferFile.name),
-                batchTotalSize: currentTransferFile.batchTotalSize || activeBatchTotalSize,
-                isDirectDownload: isDirect
+                isDirect: activeBatchIsDirect || (currentTransferFile.size >= DIRECT_DOWNLOAD_THRESHOLD),
+                queueRemaining: pendingFileQueue.length
             };
             
             try {
                 sendControlMessage(activeDataConn, payloadMeta);
             } catch(err) {
                 showToast("Connection send error.", "rose");
-                preservePartialState();
                 abortTransfer();
             }
         }
@@ -2078,16 +1802,13 @@
                 }
             }
 
-            // High-Speed Block Prefetching loop with device-tailored parameters & pause/stop capability
             while (offset < file.size) {
                 if (!isConnected || !activeDataConn || !activeDataConn.open || isTransferCancelled) {
-                    preservePartialState();
                     abortTransfer();
                     releaseWakeLock();
                     return;
                 }
 
-                // Pause check loop
                 while (isTransferPaused) {
                     await new Promise(r => setTimeout(r, 150));
                     if (!isConnected || isTransferCancelled) {
@@ -2097,7 +1818,6 @@
                     }
                 }
 
-                // Check and wait for backpressure drain before memory block read
                 if (rawDC) {
                     await waitForBufferDrain(rawDC, maxBuffer, lowBuffer);
                 }
@@ -2109,23 +1829,19 @@
                     blockBuffer = await blockSlice.arrayBuffer();
                 } catch(err) {
                     showToast("Failed to read file block.", "rose");
-                    preservePartialState();
                     abortTransfer();
                     releaseWakeLock();
                     return;
                 }
 
-                // Stream safe-sized sub-chunks directly from memory into socket
                 let blockOffset = 0;
                 while (blockOffset < blockBuffer.byteLength) {
                     if (!isConnected || !activeDataConn || !activeDataConn.open || isTransferCancelled) {
-                        preservePartialState();
                         abortTransfer();
                         releaseWakeLock();
                         return;
                     }
 
-                    // Intra-block pause check
                     while (isTransferPaused) {
                         await new Promise(r => setTimeout(r, 150));
                         if (!isConnected || isTransferCancelled) {
@@ -2135,7 +1851,6 @@
                         }
                     }
 
-                    // Intra-block backpressure check
                     if (rawDC) {
                         await waitForBufferDrain(rawDC, maxBuffer, lowBuffer);
                     }
@@ -2147,7 +1862,6 @@
                         activeDataConn.send(chunkData);
                     } catch(err) {
                         showToast("Transfer interrupted.", "rose");
-                        preservePartialState();
                         abortTransfer();
                         releaseWakeLock();
                         return;
@@ -2164,7 +1878,6 @@
                 }
             }
 
-            // Await buffer queue to fully flush before signaling transfer completion
             if (rawDC && rawDC.bufferedAmount > 0) {
                 await new Promise(resolve => {
                     const drainTimer = setInterval(() => {
@@ -2190,11 +1903,6 @@
             updateProgressUI(file.size, file.size);
             const etaLabel = document.getElementById('eta-label');
             if (etaLabel) etaLabel.innerText = "Completed";
-            const dirBadge = document.getElementById('transfer-direction-badge');
-            if (dirBadge) {
-                dirBadge.innerText = "Completed";
-                dirBadge.className = "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0";
-            }
 
             try {
                 sendControlMessage(activeDataConn, { type: 'end' });
@@ -2206,9 +1914,6 @@
             const elapsedSec = Math.max(0.1, (performance.now() - transferStartTime) / 1000);
             const avgSpeed = formatSpeed(file.size / elapsedSec);
             showToast(`${file.name} sent at ${avgSpeed}!`, "emerald");
-
-            const fileLabel = document.getElementById('file-info-label');
-            if (fileLabel) fileLabel.innerText = `Sent (${avgSpeed})`;
 
             const fileObj = {
                 name: file.name,
@@ -2222,43 +1927,17 @@
             };
             saveFileToDB(fileObj);
             addFileToHistory(fileObj);
+            enforceAutoRamLimit();
 
-            resetFileInputs();
-
-            // Safety acknowledgment fallback timer in case receiver ack is delayed
+            // Sender fallback timer to advance queue if receiver acknowledgment is delayed
             if (senderAckTimeout) clearTimeout(senderAckTimeout);
             senderAckTimeout = setTimeout(() => {
-                if (isTransferring && currentTransferFile === file) {
-                    handleSenderFileCompletion(file.name, avgSpeed);
+                if (isTransferring) {
+                    handleSenderFileCompletion();
                 }
-            }, 3500);
-        }
+            }, 2500);
 
-        function handleSenderFileCompletion(fileName, avgSpeed = '') {
-            const fileLabel = document.getElementById('file-info-label');
-            if (fileLabel) fileLabel.innerText = `Completed & Saved!`;
-            const etaLabel = document.getElementById('eta-label');
-            if (etaLabel) etaLabel.innerText = "Completed";
-            const dirBadge = document.getElementById('transfer-direction-badge');
-            if (dirBadge) {
-                dirBadge.innerText = "Finished";
-                dirBadge.className = "px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0";
-            }
-
-            showToast(`${fileName || 'File'} sent & saved!`, "emerald");
-
-            currentTransferFile = null;
-            lastAttemptedFile = null;
-            isTransferring = false;
-
-            if (pendingFileQueue.length > 0) {
-                // Step smoothly to the next queued file
-                setTimeout(processNextFileInQueue, 250);
-            } else {
-                hideProgressUI(false);
-                activeBatchTotalSize = 0;
-                activeBatchIsDirect = false;
-            }
+            resetFileInputs();
         }
 
         function abortTransfer() {
@@ -2267,10 +1946,6 @@
             lastAttemptedFile = null;
             isTransferPaused = false;
             isTransferCancelled = false;
-            if (writableStream) {
-                try { writableStream.abort(); } catch(e) {}
-                writableStream = null;
-            }
             releaseWakeLock();
             hideProgressUI(true);
         }
@@ -2350,7 +2025,6 @@
                 const bytesDiff = Math.max(0, current - lastBytes);
                 const instantaneousSpeed = bytesDiff / timeDiff;
 
-                // Smooth exponential moving average speed to prevent ETA jumping
                 smoothedSpeed = smoothedSpeed === 0 
                     ? instantaneousSpeed 
                     : (smoothedSpeed * 0.75 + instantaneousSpeed * 0.25);
@@ -2362,7 +2036,6 @@
                 const speedEl = document.getElementById('speed-label');
                 if (speedEl) speedEl.innerText = formatSpeed(instantaneousSpeed);
 
-                // Precise Remaining Time (ETA) calculation
                 const remainingBytes = Math.max(0, total - current);
                 const etaLabel = document.getElementById('eta-label');
                 if (etaLabel) {
@@ -2416,13 +2089,12 @@
                 return;
             }
 
-            // Keep completed summary visible for 3.5 seconds so users can read the final statistics
             hideTimeout = setTimeout(() => {
                 const card = document.getElementById('progress-card');
                 if (card) card.classList.add('hidden');
                 const pBar = document.getElementById('progress-bar');
                 if (pBar) pBar.style.width = '0%';
-            }, 3500);
+            }, 2500);
         }
 
         function addFileToHistory(fileObj) {
@@ -2485,227 +2157,31 @@
             showToast("Transfer history cleared & RAM freed", "rose");
         }
 
-        function freeMemoryCache() {
-            let freedCount = 0;
-            fileHistory.forEach(file => {
-                if (file.url) {
-                    try { URL.revokeObjectURL(file.url); } catch(e) {}
-                    file.url = null;
-                    file.blob = null;
-                    file.memoryFreed = true;
-                    freedCount++;
-                }
-            });
-            // Clear binary blobs stored in IndexedDB to avoid storage pressure
-            clearDBFiles();
-            renderFileHistory();
-            showToast(`Freed memory for ${freedCount} file(s)! RAM optimized.`, "emerald");
-        }
-
         function saveReceivedFile(chunks, name, mime, transferSpeed = '') {
             try {
                 const detectedMime = mime || detectMimeByName(name);
                 const blob = new Blob(chunks, { type: detectedMime || 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
 
-                const isDirectMode = incomingMeta?.isDirectDownload || 
-                                     ((incomingMeta?.batchTotalSize || 0) > DIRECT_DOWNLOAD_THRESHOLD) || 
-                                     (blob.size > DIRECT_DOWNLOAD_THRESHOLD);
+                const fileObj = {
+                    name: name,
+                    size: blob.size,
+                    mime: detectedMime,
+                    blob: blob.size < 25 * 1024 * 1024 ? blob : null,
+                    url: url,
+                    isSent: false,
+                    isDiskSaved: false,
+                    transferSpeed: transferSpeed,
+                    timestamp: Date.now()
+                };
 
-                if (isDirectMode) {
-                    // Direct to Downloads without asking & immediately purge RAM
-                    try {
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = name;
-                        a.style.display = 'none';
-                        document.body.appendChild(a);
-                        a.click();
-                        setTimeout(() => {
-                            if (document.body.contains(a)) document.body.removeChild(a);
-                            // Revoke URL after giving browser enough time to begin download
-                            setTimeout(() => URL.revokeObjectURL(url), 20000);
-                        }, 500);
-                    } catch (e) {
-                        console.error("Direct download trigger error:", e);
-                    }
+                saveFileToDB(fileObj);
+                addFileToHistory(fileObj);
 
-                    const fileObj = {
-                        name: name,
-                        size: blob.size,
-                        mime: detectedMime,
-                        blob: null, // Zero RAM retained!
-                        url: null,
-                        isSent: false,
-                        isDiskSaved: true,
-                        transferSpeed: transferSpeed,
-                        timestamp: Date.now()
-                    };
-
-                    saveFileToDB(fileObj);
-                    addFileToHistory(fileObj);
-                    showToast(`Saved ${name} (${formatBytes(blob.size)}) directly to Downloads!`, "emerald");
-                } else {
-                    // Total batch <= 200MB: Save in RAM & Files and History
-                    const fileObj = {
-                        name: name,
-                        size: blob.size,
-                        mime: detectedMime,
-                        blob: blob,
-                        url: url,
-                        isSent: false,
-                        isDiskSaved: false,
-                        transferSpeed: transferSpeed,
-                        timestamp: Date.now()
-                    };
-
-                    saveFileToDB(fileObj);
-                    addFileToHistory(fileObj);
-                    enforceAutoRamLimit();
-                    showToast(`Received ${name} • Stored in Files & History`, "emerald");
-                }
-
-                // Send acknowledgment back to sender so sender streams next queued file
-                if (activeDataConn && activeDataConn.open) {
-                    sendControlMessage(activeDataConn, { type: 'file_saved', name: name });
-                }
+                showToast(`Received ${name} • Stored in Files & History`, "emerald");
             } catch (err) {
-                console.error("Error in saveReceivedFile:", err);
                 showToast("Error processing received file: " + err.message, "rose");
             }
-        }
-
-        function enforceAutoRamLimit() {
-            let totalRamBytes = 0;
-            fileHistory.forEach(f => {
-                if (f.blob && f.size) totalRamBytes += f.size;
-            });
-
-            // If RAM buffered size exceeds 300MB, automatically clean up oldest RAM buffers
-            if (totalRamBytes > RAM_MAX_BUFFER_LIMIT) {
-                for (let i = fileHistory.length - 1; i >= 0; i--) {
-                    const f = fileHistory[i];
-                    if (f.blob) {
-                        totalRamBytes -= f.size;
-                        if (f.url) {
-                            try { URL.revokeObjectURL(f.url); } catch(e) {}
-                            f.url = null;
-                        }
-                        f.blob = null;
-                        f.memoryFreed = true;
-                        if (totalRamBytes <= RAM_MAX_BUFFER_LIMIT * 0.7) break;
-                    }
-                }
-                renderFileHistory();
-            }
-        }
-
-        function openDeviceSaveModal(name, size, isAlreadySavedToDisk = false) {
-            const modal = document.getElementById('device-save-modal');
-            const nameEl = document.getElementById('device-save-filename');
-            const sizeEl = document.getElementById('device-save-filesize');
-            const btnLabel = document.getElementById('device-save-btn-text');
-            const subtext = document.getElementById('device-save-subtext');
-            const badge = document.getElementById('device-save-status-badge');
-
-            if (nameEl) nameEl.innerText = name;
-            if (sizeEl) sizeEl.innerText = formatBytes(size);
-
-            if (isAlreadySavedToDisk) {
-                if (badge) badge.innerText = "Saved to Storage";
-                if (subtext) subtext.innerText = "File was written directly to your chosen folder.";
-                if (btnLabel) btnLabel.innerText = "Download Additional Copy";
-            } else {
-                if (badge) badge.innerText = "Transfer 100% Complete";
-                if (subtext) subtext.innerText = isAppleDevice() 
-                    ? "Tap below to save to iPad/iPhone Files or Photos."
-                    : "Tap below to save to your device Downloads folder.";
-                if (btnLabel) btnLabel.innerText = isAppleDevice() 
-                    ? "Save to Files / Photos" 
-                    : "Save to Downloads";
-            }
-
-            if (modal) {
-                modal.classList.remove('hidden');
-                lucide.createIcons();
-            }
-        }
-
-        function closeDeviceSaveModal() {
-            const modal = document.getElementById('device-save-modal');
-            if (modal) modal.classList.add('hidden');
-        }
-
-        async function executeDeviceStorageSave() {
-            if (!pendingSaveFile) return;
-            const { blob, name, url, mime } = pendingSaveFile;
-
-            // Universal Web Share: Supported on Android, iOS/iPadOS, and macOS for direct saving
-            if ((isMobileDevice() || isAppleDevice()) && navigator.canShare && typeof File !== 'undefined') {
-                try {
-                    const file = new File([blob], name, { type: mime || 'application/octet-stream' });
-                    if (navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            files: [file],
-                            title: name
-                        });
-                        showToast("Saved to Device Storage!", "emerald");
-                        closeDeviceSaveModal();
-                        return;
-                    }
-                } catch(err) {
-                    if (err.name === 'AbortError') return;
-                }
-            }
-
-            // Direct user-gesture download (Works across Chrome, Edge, Safari, Firefox)
-            try {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = name;
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(() => {
-                    if (document.body.contains(a)) document.body.removeChild(a);
-                }, 1000);
-                showToast("Saved to Downloads!", "emerald");
-                closeDeviceSaveModal();
-            } catch(err) {
-                window.open(url, '_blank');
-                showToast("File opened in new tab", "emerald");
-                closeDeviceSaveModal();
-            }
-        }
-
-        async function executeNativeShare() {
-            if (!pendingSaveFile) return;
-            const { blob, name, mime, url } = pendingSaveFile;
-
-            if (navigator.share) {
-                try {
-                    if (typeof File !== 'undefined') {
-                        const file = new File([blob], name, { type: mime || 'application/octet-stream' });
-                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                            await navigator.share({
-                                files: [file],
-                                title: name
-                            });
-                            showToast("Shared successfully!", "emerald");
-                            closeDeviceSaveModal();
-                            return;
-                        }
-                    }
-                    await navigator.share({
-                        title: name,
-                        url: url
-                    });
-                    closeDeviceSaveModal();
-                    return;
-                } catch(e) {
-                    if (e.name === 'AbortError') return;
-                }
-            }
-            executeDeviceStorageSave();
         }
 
         async function downloadSelectedAsZip() {
@@ -2851,7 +2327,7 @@
                     <div class="flex gap-1.5 flex-shrink-0">
                         ${(isMedia && file.url) ? `<button onclick="openMediaPreviewByIndex(${index})" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Preview</button>` : ''}
                         ${file.url ? `<a href="${file.url}" download="${escapeHtml(file.name)}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition">Save</a>` : ''}
-                        ${(file.isDiskSaved || file.memoryFreed || !file.url) ? `<span class="text-[10px] text-sky-500 font-bold px-2 py-1 bg-sky-500/10 rounded-lg flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> On Storage</span>` : ''}
+                        ${(file.isDiskSaved || !file.url) ? `<span class="text-[10px] text-sky-500 font-bold px-2 py-1 bg-sky-500/10 rounded-lg flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> On Storage</span>` : ''}
                     </div>
                 `;
                 list.appendChild(row);
@@ -2863,9 +2339,7 @@
 
         function setupDragAndDrop() {
             const circle = document.getElementById('upload-circle');
-            const fileInput = document.getElementById('file-input');
-
-            if (circle && fileInput) {
+            if (circle) {
                 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                     document.body.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
                 });
@@ -2879,12 +2353,7 @@
                 });
 
                 document.body.addEventListener('drop', (e) => {
-                    const files = Array.from(e.dataTransfer.files);
-                    if (files.length) queueFilesForTransfer(files);
-                });
-
-                fileInput.addEventListener('change', (e) => {
-                    const files = Array.from(e.target.files);
+                    const files = Array.from(e.dataTransfer.files || []);
                     if (files.length) queueFilesForTransfer(files);
                 });
             }
@@ -2896,18 +2365,18 @@
             const btnHistory = document.getElementById('dock-btn-history');
             const btnClip = document.getElementById('dock-btn-clip');
 
-            btnRadar.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
-            btnHistory.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
-            btnClip.className = "flex-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+            btnRadar.className = "flex-1 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+            btnHistory.className = "flex-1 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
+            btnClip.className = "flex-1 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-lime-600 flex items-center justify-center gap-1.5 transition";
 
             if (tab === 'history') {
-                btnHistory.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+                btnHistory.className = "flex-1 py-1.5 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
                 document.getElementById('drawer-history').classList.remove('hidden');
             } else if (tab === 'clip') {
-                btnClip.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+                btnClip.className = "flex-1 py-1.5 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
                 document.getElementById('drawer-clip').classList.remove('hidden');
             } else {
-                btnRadar.className = "flex-1 py-2 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
+                btnRadar.className = "flex-1 py-1.5 rounded-xl theme-accent-btn shadow flex items-center justify-center gap-1.5 transition";
             }
         }
 
@@ -3193,7 +2662,6 @@
                             if (input) input.value = decodedText.trim().toUpperCase();
                             stopQRScanner();
                             connectToPeer();
-                            closePairingModal();
                         },
                         () => {}
                     ).catch(() => {
@@ -3240,16 +2708,16 @@
             
             if (type === 'emerald') {
                 if (toastIcon) toastIcon.innerText = "✅";
-                if (toastInner) toastInner.className = "bg-emerald-950 border border-emerald-500/50 text-emerald-200 text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5";
+                if (toastInner) toastInner.className = "bg-emerald-950 border border-emerald-500/50 text-emerald-200 text-xs font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2";
             } else if (type === 'rose') {
                 if (toastIcon) toastIcon.innerText = "🛡️";
-                if (toastInner) toastInner.className = "bg-rose-950 border border-rose-500/50 text-rose-200 text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5";
+                if (toastInner) toastInner.className = "bg-rose-950 border border-rose-500/50 text-rose-200 text-xs font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2";
             } else if (type === 'amber') {
                 if (toastIcon) toastIcon.innerText = "⚠️";
-                if (toastInner) toastInner.className = "bg-amber-950 border border-amber-500/50 text-amber-200 text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5";
+                if (toastInner) toastInner.className = "bg-amber-950 border border-amber-500/50 text-amber-200 text-xs font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2";
             } else {
                 if (toastIcon) toastIcon.innerText = "⚡";
-                if (toastInner) toastInner.className = "bg-slate-900 border border-slate-700 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5";
+                if (toastInner) toastInner.className = "bg-slate-900 border border-slate-700 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2";
             }
 
             toast.classList.remove('opacity-0', '-translate-y-16', 'pointer-events-none');
@@ -3258,7 +2726,7 @@
             setTimeout(() => {
                 toast.classList.remove('opacity-100', 'translate-y-0');
                 toast.classList.add('opacity-0', '-translate-y-16', 'pointer-events-none');
-            }, 3500);
+            }, 3000);
         }
 
         function initPwaSupport() {
@@ -3273,11 +2741,6 @@
                     {
                         src: "https://placehold.co/192x192/84cc16/ffffff?text=LimeShare",
                         sizes: "192x192",
-                        type: "image/png"
-                    },
-                    {
-                        src: "https://placehold.co/512x512/84cc16/ffffff?text=LimeShare",
-                        sizes: "512x512",
                         type: "image/png"
                     }
                 ]
@@ -3456,48 +2919,6 @@
             showToast(enabled ? "Security Shield Active" : "Shield Disabled", enabled ? "emerald" : "amber");
         }
 
-        function savePartialToDB(fileId, meta, chunks, receivedSize) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('partials', 'readwrite');
-                tx.objectStore('partials').put({
-                    fileId: fileId,
-                    meta: meta,
-                    chunks: chunks,
-                    receivedSize: receivedSize,
-                    timestamp: Date.now()
-                });
-            } catch(e) {}
-        }
-
-        function removePartialFromDB(fileId) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('partials', 'readwrite');
-                tx.objectStore('partials').delete(fileId);
-            } catch(e) {}
-        }
-
-        function loadPartialsFromDB() {
-            if (!db) return;
-            try {
-                const tx = db.transaction('partials', 'readonly');
-                const req = tx.objectStore('partials').getAll();
-                req.onsuccess = () => {
-                    const list = req.result || [];
-                    list.forEach(item => {
-                        if (item && item.fileId) {
-                            activePartialTransfers[item.fileId] = {
-                                meta: item.meta,
-                                chunks: item.chunks,
-                                receivedSize: item.receivedSize
-                            };
-                        }
-                    });
-                };
-            } catch(e) {}
-        }
-
         function initDB() {
             return new Promise((resolve) => {
                 try {
@@ -3510,18 +2931,10 @@
                         if (!database.objectStoreNames.contains('snippets')) {
                             database.createObjectStore('snippets', { keyPath: 'id', autoIncrement: true });
                         }
-                        if (!database.objectStoreNames.contains('partials')) {
-                            database.createObjectStore('partials', { keyPath: 'fileId' });
-                        }
                     };
                     req.onsuccess = (e) => {
                         db = e.target.result;
-                        if (typeof loadHistoryFromDB === 'function') {
-                            loadHistoryFromDB();
-                        }
-                        if (typeof loadPartialsFromDB === 'function') {
-                            loadPartialsFromDB();
-                        }
+                        loadHistoryFromDB();
                         resolve(db);
                     };
                     req.onerror = () => resolve(null);
@@ -3586,48 +2999,6 @@
             try {
                 const tx = db.transaction('files', 'readwrite');
                 tx.objectStore('files').clear();
-            } catch(e) {}
-        }
-
-        function savePartialToDB(fileId, meta, chunks, receivedSize) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('partials', 'readwrite');
-                tx.objectStore('partials').put({
-                    fileId: fileId,
-                    meta: meta,
-                    chunks: chunks,
-                    receivedSize: receivedSize,
-                    timestamp: Date.now()
-                });
-            } catch(e) {}
-        }
-
-        function removePartialFromDB(fileId) {
-            if (!db) return;
-            try {
-                const tx = db.transaction('partials', 'readwrite');
-                tx.objectStore('partials').delete(fileId);
-            } catch(e) {}
-        }
-
-        function loadPartialsFromDB() {
-            if (!db) return;
-            try {
-                const tx = db.transaction('partials', 'readonly');
-                const req = tx.objectStore('partials').getAll();
-                req.onsuccess = () => {
-                    const list = req.result || [];
-                    list.forEach(item => {
-                        if (item && item.fileId) {
-                            activePartialTransfers[item.fileId] = {
-                                meta: item.meta,
-                                chunks: item.chunks,
-                                receivedSize: item.receivedSize
-                            };
-                        }
-                    });
-                };
             } catch(e) {}
         }
     </script>
